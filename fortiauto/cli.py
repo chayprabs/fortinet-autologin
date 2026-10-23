@@ -13,6 +13,8 @@ usage: fortiauto <command>
   run                watch the connection and log in automatically
                      (this is what the autostart task runs)
   status             last login, countdown to the next reset, errors
+  check              probe once: online / captive / offline
+  login              log in right now if the portal is asking
 """ % __version__
 
 
@@ -87,9 +89,42 @@ def cmd_status():
     return 0
 
 
+def cmd_check():
+    from . import probe
+
+    cfg = config.load()
+    status, portal_url = probe.check(cfg.probe_url, cfg.timeout)
+    print(status + (" -> %s" % portal_url if portal_url else ""))
+    return 0 if status == probe.ONLINE else 1
+
+
+def cmd_login():
+    from . import creds, portal, probe
+
+    cfg = config.load()
+    status, portal_url = probe.check(cfg.probe_url, cfg.timeout)
+    if status != probe.CAPTIVE:
+        print("no FortiGate login page right now (network: %s)" % status)
+        return 0 if status == probe.ONLINE else 1
+    c = creds.load()
+    if not c:
+        print("no credentials saved; run: fortiauto set-credentials", file=sys.stderr)
+        return 1
+    try:
+        keepalive = portal.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
+                                 timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+    except (OSError, portal.PortalError) as e:
+        print("login failed: %s" % e, file=sys.stderr)
+        return 1
+    print("logged in" + (" (keepalive: %s)" % keepalive if keepalive else ""))
+    return 0
+
+
 COMMANDS = {
     "run": cmd_run,
     "status": cmd_status,
+    "check": cmd_check,
+    "login": cmd_login,
 }
 
 
