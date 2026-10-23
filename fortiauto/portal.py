@@ -7,6 +7,9 @@ answers with a page that points at /keepalive?<token>.
 """
 
 import re
+from urllib.parse import urlencode, urljoin
+
+from . import net
 
 
 class PortalError(Exception):
@@ -20,6 +23,7 @@ class AuthFailed(PortalError):
 _INPUT = re.compile(r"<input\b[^>]*>", re.I)
 _ATTR = re.compile(r"""([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))""")
 _FORM_ACTION = re.compile(r"""<form\b[^>]*?\baction\s*=\s*["']?([^"'\s>]*)""", re.I)
+_KEEPALIVE = re.compile(r"""[^\s"'<>]*/keepalive\?[^\s"'<>]+""")
 
 
 def _attrs(tag):
@@ -52,3 +56,39 @@ def parse_form(body):
         raise PortalError("page has no FortiGate login form")
     m = _FORM_ACTION.search(body)
     return (m.group(1) if m else "") or "/", hidden, user_field or "username", pass_field
+
+
+def find_keepalive(text, base):
+    """Absolute keepalive URL from a post-login page/redirect, or None."""
+    m = _KEEPALIVE.search(text or "")
+    return urljoin(base, m.group(0)) if m else None
+
+
+def login(portal_url, username, password, verify_tls=False, timeout=5.0):
+    """Log in through the portal. Returns the keepalive URL (may be None).
+
+    Raises AuthFailed on wrong credentials, PortalError on an unexpected page,
+    OSError on network trouble.
+    """
+    page = net.fetch(portal_url, timeout=timeout, verify_tls=verify_tls, follow=3)
+    action, fields, user_field, pass_field = parse_form(page.body)
+    target = urljoin(page.url, action)
+    fields[user_field] = username
+    fields[pass_field] = password
+    # follow=0: after login the gateway redirects to your original site, which
+    # we do not need to load. The keepalive link is in this response.
+    r = net.fetch(target, urlencode(fields).encode(), timeout=timeout, verify_tls=verify_tls)
+    keepalive = find_keepalive(r.location, target) or find_keepalive(r.body, target)
+    if keepalive is None:
+        try:
+            parse_form(r.body)
+        except PortalError:
+            pass  # not the login form again, so it most likely worked
+        else:
+            raise AuthFailed("gateway rejected the username or password")
+    return keepalive
+
+
+def keepalive(url, verify_tls=False, timeout=5.0):
+    """Hit the keepalive URL, like the portal's own browser tab does."""
+    return net.fetch(url, timeout=timeout, verify_tls=verify_tls).status == 200
