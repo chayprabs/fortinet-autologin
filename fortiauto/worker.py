@@ -2,8 +2,8 @@
 
 The resident watcher only probes, so it stays tiny. http.client, ssl and the
 Windows credential code load in the child, which exits right after (about
-50-100 ms of process start per login). The child is the same Python with -S,
-so installed packages can't interfere, and it never opens a window.
+50-100 ms of process start per login). The child is the same Python, isolated
+from installed packages, and it never opens a window.
 """
 
 import os
@@ -17,12 +17,18 @@ _PKG_PARENT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0  # CREATE_NO_WINDOW
 
 
+# -I -S: no site-packages, no cwd on sys.path. The package folder is appended
+# last, so nothing next to it (e.g. old stdlib backports) can shadow stdlib.
+_BOOT = ("import sys; sys.path.append(%r); from fortiauto.cli import main; "
+         "sys.exit(main(sys.argv[1:]))" % _PKG_PARENT)
+
+
 def _run(args, timeout):
     import subprocess
 
-    cmd = [sys.executable, "-S", "-m", "fortiauto"] + args
+    cmd = [sys.executable, "-I", "-S", "-c", _BOOT] + args
     try:
-        return subprocess.run(cmd, cwd=_PKG_PARENT, capture_output=True, text=True,
+        return subprocess.run(cmd, capture_output=True, text=True,
                               timeout=timeout, creationflags=_NO_WINDOW)
     except subprocess.TimeoutExpired:
         raise OSError("worker timed out")
