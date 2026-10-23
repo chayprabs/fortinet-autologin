@@ -92,6 +92,13 @@ class DaemonTest(unittest.TestCase):
         self.h.run(119, net=CAPTIVE)
         self.assertEqual(len(self.h.logins), 2)  # t=0 and t=60
 
+    def test_login_that_does_not_open_internet_backs_off(self):
+        self.h.login = None
+        self.h.d.login = lambda url: self.h.logins.append(self.h.now)  # "works", stays captive
+        self.h.run(40, net=CAPTIVE)
+        gaps = [b - a for a, b in zip(self.h.logins, self.h.logins[1:])]
+        self.assertEqual(gaps[:4], [2, 4, 8, 16])
+
     def test_keepalive_every_interval_while_online(self):
         self.h.net = CAPTIVE
         self.h.d.tick()

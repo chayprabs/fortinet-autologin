@@ -27,7 +27,7 @@ class Daemon:
         self.clock = clock
         self.last = None
         self.retry_at = 0.0
-        self.failures = 0
+        self.attempts = 0  # login attempts since we last saw ONLINE
         self.last_keepalive = 0.0
 
     def tick(self):
@@ -43,6 +43,7 @@ class Daemon:
         if status == CAPTIVE:
             self._login(portal_url, now)
         elif status == ONLINE:
+            self.attempts = 0  # only real internet access proves a login worked
             self._keepalive(now)
         return self.interval(self.clock())
 
@@ -72,6 +73,12 @@ class Daemon:
         cfg = self.cfg
         if now < self.retry_at:
             return
+        # Every attempt, even one that "succeeds", pushes the next one out
+        # (2, 4, 8, 16, 30 s) until the internet actually works. A portal
+        # that silently ignores us can never be hammered.
+        self.attempts += 1
+        wait = min(2 ** self.attempts, 30)
+        self.retry_at = now + wait
         t0 = self.clock()
         try:
             # Credentials are read on every login, so `fortiauto set-credentials`
@@ -89,16 +96,10 @@ class Daemon:
             self.retry_at = now + 60
             return
         except (OSError, portal.PortalError) as e:
-            self.failures += 1
-            wait = min(2 ** self.failures, 30)  # 2, 4, 8, 16, 30, 30...
             log.warn("login attempt failed (%s); retrying in %ds" % (e, wait))
             self.state.update(last_error=str(e))
-            self.retry_at = now + wait
             return
-        self.failures = 0
         self.last_keepalive = now
-        # The gateway can take a moment to open up; don't re-login on the next probe.
-        self.retry_at = now + 3
         expires = now + cfg.session_seconds
         self.state.update(logged_in_at=now, expires_at=expires, keepalive_url=keepalive_url,
                           logins=self.state.get("logins", 0) + 1, last_error=None)
