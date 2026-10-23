@@ -28,6 +28,7 @@ class Daemon:
         self.last = None
         self.retry_at = 0.0
         self.failures = 0
+        self.last_keepalive = 0.0
 
     def tick(self):
         cfg = self.cfg
@@ -41,7 +42,23 @@ class Daemon:
             log.debug("network: %s" % status)
         if status == CAPTIVE:
             self._login(portal_url, now)
+        elif status == ONLINE:
+            self._keepalive(now)
         return cfg.check_interval
+
+    def _keepalive(self, now):
+        cfg = self.cfg
+        url = self.state.get("keepalive_url")
+        if not url or cfg.keepalive_interval <= 0:
+            return
+        if now - self.last_keepalive < cfg.keepalive_interval:
+            return
+        self.last_keepalive = now
+        try:
+            ok = self.keepalive(url, verify_tls=cfg.verify_tls, timeout=cfg.timeout)
+            log.debug("keepalive %s" % ("ok" if ok else "not accepted"))
+        except OSError as e:
+            log.debug("keepalive failed: %s" % e)
 
     def _login(self, portal_url, now):
         cfg = self.cfg
@@ -72,6 +89,7 @@ class Daemon:
             self.retry_at = now + wait
             return
         self.failures = 0
+        self.last_keepalive = now
         # The gateway can take a moment to open up; don't re-login on the next probe.
         self.retry_at = now + 3
         expires = now + cfg.session_seconds
