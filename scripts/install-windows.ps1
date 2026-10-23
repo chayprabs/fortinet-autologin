@@ -15,7 +15,8 @@
   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1
 #>
 param(
-    [string]$TaskName = 'fortiauto'
+    [string]$TaskName = 'fortiauto',
+    [switch]$NoPrompt  # don't ask for the portal login at the end
 )
 $ErrorActionPreference = 'Stop'
 
@@ -79,7 +80,16 @@ catch {
 }
 
 Write-Host ''
-Write-Host 'Next: save your portal login once (stored in Windows Credential Manager):'
+if (-not $NoPrompt) {
+    $ans = Read-Host 'Save your portal username/password now? (stored in Windows Credential Manager) [Y/n]'
+    if ($ans -notmatch '^[nN]') {
+        Push-Location $dest
+        try { & $exe -S -m fortiauto set-credentials } finally { Pop-Location }
+    }
+}
+Write-Host ''
+Write-Host 'Done. fortiauto now runs in the background and at every logon.'
+Write-Host 'Change your saved login:'
 Write-Host "  cd `"$dest`"; & `"$exe`" -m fortiauto set-credentials"
 Write-Host 'Check on it any time:'
 Write-Host "  cd `"$dest`"; & `"$exe`" -m fortiauto status"

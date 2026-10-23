@@ -50,7 +50,17 @@ else
 fi
 
 echo
-echo "Next, save your portal login once:"
+if [ -t 0 ]; then
+    printf "Save your portal username/password now? [Y/n] "
+    read -r ans || ans=n
+    case "$ans" in
+        [nN]*) ;;
+        *) (cd "$APP" && "$PY" -S -m fortiauto set-credentials) ;;
+    esac
+fi
+echo
+echo "Done. fortiauto now runs in the background."
+echo "Change your saved login:"
 echo "  cd \"$APP\" && $PY -m fortiauto set-credentials"
 echo "Check on it any time:"
 echo "  cd \"$APP\" && $PY -m fortiauto status"
