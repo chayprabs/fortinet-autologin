@@ -32,7 +32,14 @@ DEFAULTS = {
 
 
 def app_dir():
-    """Per-user folder for config, state and log. Created on first use."""
+    """Per-user folder for config, state and log. Created on first use.
+
+    FORTIAUTO_HOME overrides it (used by tests, handy for portable setups).
+    """
+    path = os.environ.get("FORTIAUTO_HOME")
+    if path:
+        os.makedirs(path, exist_ok=True)
+        return path
     if os.name == "nt":
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
     else:
