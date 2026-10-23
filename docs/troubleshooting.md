@@ -49,6 +49,17 @@ controls when the fast-polling window happens; the re-login works either way.
 That's the idle timeout. Keepalives (on by default, every 300 s) should
 prevent it. If not, lower `keepalive_interval`, e.g. to 60.
 
+## Task Scheduler says 0x8007010B / "the directory name is invalid"
+
+You ran the installer from inside a sandboxed (MSIX-packaged) app, such as
+an AI assistant's or an IDE's built-in terminal. Windows silently redirects
+that app's AppData writes into its own private folder, so the task can't
+find the program. Run `install.cmd` by double-clicking it in File Explorer,
+or from a normal PowerShell window, and it will fix the task in place.
+
+Check it's running: `Get-ScheduledTaskInfo fortiauto` should show
+`LastTaskResult : 267009` (that's 0x41301, "currently running").
+
 ## Uninstall
 
 - Windows: `powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1 -Purge`
