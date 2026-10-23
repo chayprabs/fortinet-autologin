@@ -7,7 +7,7 @@ answers with a page that points at /keepalive?<token>.
 """
 
 import re
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, urlsplit
 
 from . import net
 
@@ -64,15 +64,42 @@ def find_keepalive(text, base):
     return urljoin(base, m.group(0)) if m else None
 
 
-def login(portal_url, username, password, verify_tls=False, timeout=5.0):
+def check_host(url, allowed_hosts=()):
+    """Refuse to send credentials anywhere except the campus gateway.
+
+    With no allow-list, only private/loopback IP addresses pass (FortiGate
+    portals are almost always on 10.x / 172.16-31.x / 192.168.x). Anything
+    else must be listed in `allowed_hosts`. This stops a spoofed page on
+    some other network from harvesting your password.
+    """
+    host = (urlsplit(url).hostname or "").lower()
+    if allowed_hosts:
+        ok = host in [h.lower() for h in allowed_hosts]
+    else:
+        import ipaddress
+
+        try:
+            ok = ipaddress.ip_address(host).is_private
+        except ValueError:
+            ok = False
+    if not ok:
+        raise PortalError(
+            "refusing to send credentials to %r; if this is your gateway add it to "
+            "allowed_hosts in config.json" % host
+        )
+
+
+def login(portal_url, username, password, verify_tls=False, timeout=5.0, allowed_hosts=()):
     """Log in through the portal. Returns the keepalive URL (may be None).
 
     Raises AuthFailed on wrong credentials, PortalError on an unexpected page,
     OSError on network trouble.
     """
+    check_host(portal_url, allowed_hosts)
     page = net.fetch(portal_url, timeout=timeout, verify_tls=verify_tls, follow=3)
     action, fields, user_field, pass_field = parse_form(page.body)
     target = urljoin(page.url, action)
+    check_host(target, allowed_hosts)
     fields[user_field] = username
     fields[pass_field] = password
     # follow=0: after login the gateway redirects to your original site, which
