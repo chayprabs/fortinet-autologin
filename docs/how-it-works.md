@@ -35,7 +35,7 @@
   your home Wi-Fi, or no network at all: the tool stays idle.
 - **The watcher is tiny.** The probe uses a raw socket, so the long-running
   process never imports `http.client`, `email` or `ssl`. Logins and keepalives
-  run in a short-lived child process (`python -S -m fortiauto _login ...`)
+  run in a short-lived, isolated child process (`python -I -S ... _login <url>`)
   that exits right away.
 - **Tracking the reset.** After each login it records `expires_at = now +
   session_seconds`. From 15 s before that until 60 s after, it probes every
@@ -52,7 +52,7 @@
 ## Safety
 
 - Credentials are only ever sent to a **private IP address** (10.x, 172.16-31.x,
-  192.168.x, loopback) unless you add a hostname to `allowed_hosts`. A spoofed
+  192.168.x, 100.64.x, loopback) or a hostname you add to `allowed_hosts`. A spoofed
   portal on some other network can't phish your password.
 - TLS verification is off by default because FortiGate portals ship a
   self-signed certificate (your browser warns about it too). Turn on
