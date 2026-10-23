@@ -44,6 +44,14 @@ class Daemon:
             self._login(portal_url, now)
         elif status == ONLINE:
             self._keepalive(now)
+        return self.interval(self.clock())
+
+    def interval(self, now):
+        """Normal pace, or fast pace in the window around the expected reset."""
+        cfg = self.cfg
+        expires = self.state.get("expires_at")
+        if expires and expires - cfg.fast_window <= now <= expires + 60:
+            return cfg.fast_interval
         return cfg.check_interval
 
     def _keepalive(self, now):
