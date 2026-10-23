@@ -16,8 +16,6 @@ from urllib.parse import urljoin, urlsplit
 USER_AGENT = "fortiauto/1.0"
 MAX_BODY = 64 * 1024  # portal pages are small; never buffer more than this
 
-_contexts = {}
-
 
 class Response:
     __slots__ = ("status", "url", "location", "body")
@@ -33,7 +31,7 @@ def probe_get(url, timeout):
     """Minimal plain-HTTP GET. Raises OSError on any failure."""
     u = urlsplit(url)
     if u.scheme != "http":
-        return fetch(url, timeout=timeout)
+        raise OSError("probe_url must be plain http:// (portals only intercept HTTP)")
     path = (u.path or "/") + ("?" + u.query if u.query else "")
     req = ("GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\nCache-Control: no-cache\r\n\r\n"
            % (path, u.netloc, USER_AGENT)).encode("ascii")
@@ -59,15 +57,13 @@ def probe_get(url, timeout):
 
 
 def _ssl_context(verify):
-    if verify not in _contexts:
-        import ssl
+    import ssl
 
-        ctx = ssl.create_default_context()
-        if not verify:
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-        _contexts[verify] = ctx
-    return _contexts[verify]
+    ctx = ssl.create_default_context()
+    if not verify:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    return ctx
 
 
 def _request(url, data, timeout, verify_tls):
