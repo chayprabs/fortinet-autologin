@@ -49,7 +49,7 @@ Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 
 $user = "$env:USERDOMAIN\$env:USERNAME"
 try {
-    $action = New-ScheduledTaskAction -Execute $pythonw -Argument '-s -m fortiauto run' -WorkingDirectory $dest
+    $action = New-ScheduledTaskAction -Execute $pythonw -Argument '-S -m fortiauto run' -WorkingDirectory $dest
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $settings = New-ScheduledTaskSettingsSet `
         -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
@@ -67,11 +67,11 @@ catch {
     $sh = New-Object -ComObject WScript.Shell
     $s = $sh.CreateShortcut($lnk)
     $s.TargetPath = $pythonw
-    $s.Arguments = '-s -m fortiauto run'
+    $s.Arguments = '-S -m fortiauto run'
     $s.WorkingDirectory = $dest
     $s.WindowStyle = 7
     $s.Save()
-    Start-Process -FilePath $pythonw -ArgumentList '-s -m fortiauto run' -WorkingDirectory $dest -WindowStyle Hidden
+    Start-Process -FilePath $pythonw -ArgumentList '-S -m fortiauto run' -WorkingDirectory $dest -WindowStyle Hidden
     Write-Host "Startup: $lnk (started now, and at every logon)"
 }
 
