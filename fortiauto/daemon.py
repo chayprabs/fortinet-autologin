@@ -26,6 +26,8 @@ class Daemon:
         self.get_creds = get_creds
         self.clock = clock
         self.last = None
+        self.retry_at = 0.0
+        self.failures = 0
 
     def tick(self):
         cfg = self.cfg
@@ -43,14 +45,35 @@ class Daemon:
 
     def _login(self, portal_url, now):
         cfg = self.cfg
+        if now < self.retry_at:
+            return
+        # Read every time so `fortiauto set-credentials` works without a restart.
         c = self.get_creds()
         if not c:
             log.warn("portal is asking for a login but no credentials are saved; "
                      "run: fortiauto set-credentials")
+            self.retry_at = now + 30
             return
         t0 = self.clock()
-        keepalive_url = self.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
-                                   timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+        try:
+            keepalive_url = self.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
+                                       timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+        except portal.AuthFailed as e:
+            # Back off hard: hammering a wrong password can lock the account.
+            log.error("%s; retrying in 60s (fix with: fortiauto set-credentials)" % e)
+            self.state.update(last_error=str(e))
+            self.retry_at = now + 60
+            return
+        except (OSError, portal.PortalError) as e:
+            self.failures += 1
+            wait = min(2 ** self.failures, 30)  # 2, 4, 8, 16, 30, 30...
+            log.warn("login attempt failed (%s); retrying in %ds" % (e, wait))
+            self.state.update(last_error=str(e))
+            self.retry_at = now + wait
+            return
+        self.failures = 0
+        # The gateway can take a moment to open up; don't re-login on the next probe.
+        self.retry_at = now + 3
         expires = now + cfg.session_seconds
         self.state.update(logged_in_at=now, expires_at=expires, keepalive_url=keepalive_url,
                           logins=self.state.get("logins", 0) + 1, last_error=None)
