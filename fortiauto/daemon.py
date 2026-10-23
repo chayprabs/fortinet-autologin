@@ -1,0 +1,58 @@
+"""The watch loop: probe, and log in the moment the portal shows up."""
+
+import time
+
+from . import creds, log, portal, probe
+from .probe import CAPTIVE, ONLINE
+
+
+def _clock_time(ts):
+    return time.strftime("%H:%M:%S", time.localtime(ts))
+
+
+class Daemon:
+    """One `tick()` = one probe plus whatever it calls for. Returns seconds to sleep.
+
+    Collaborators are injectable so tests can run it without a network.
+    """
+
+    def __init__(self, cfg, state, check=probe.check, login=portal.login,
+                 keepalive=portal.keepalive, get_creds=creds.load, clock=time.time):
+        self.cfg = cfg
+        self.state = state
+        self.check = check
+        self.login = login
+        self.keepalive = keepalive
+        self.get_creds = get_creds
+        self.clock = clock
+        self.last = None
+
+    def tick(self):
+        cfg = self.cfg
+        status, portal_url = self.check(cfg.probe_url, cfg.timeout)
+        now = self.clock()
+        if status != self.last:
+            log.info("network: %s" % status)
+            self.last = status
+            self.state.update(last_state=status)
+        else:
+            log.debug("network: %s" % status)
+        if status == CAPTIVE:
+            self._login(portal_url, now)
+        return cfg.check_interval
+
+    def _login(self, portal_url, now):
+        cfg = self.cfg
+        c = self.get_creds()
+        if not c:
+            log.warn("portal is asking for a login but no credentials are saved; "
+                     "run: fortiauto set-credentials")
+            return
+        t0 = self.clock()
+        keepalive_url = self.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
+                                   timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+        expires = now + cfg.session_seconds
+        self.state.update(logged_in_at=now, expires_at=expires, keepalive_url=keepalive_url,
+                          logins=self.state.get("logins", 0) + 1, last_error=None)
+        log.info("logged in (%.1fs); next reset expected around %s"
+                 % (self.clock() - t0, _clock_time(expires)))
