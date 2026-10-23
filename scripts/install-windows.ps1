@@ -7,7 +7,7 @@
   - Copies the fortiauto folder to %LOCALAPPDATA%\fortiauto\app.
   - Registers a Task Scheduler task for YOUR user only: starts at logon,
     runs hidden (pythonw), below-normal priority, keeps running on battery,
-    restarts if it ever stops.
+    retries if it fails to launch. (The watcher itself never exits on errors.)
   - Falls back to a Startup-folder shortcut if Task Scheduler refuses.
   Undo everything with scripts\uninstall-windows.ps1.
 
@@ -25,9 +25,12 @@ $dest = Join-Path $env:LOCALAPPDATA 'fortiauto\app'
 # --- find Python 3.9+ (prefer the py launcher; "python" may be the Store stub)
 function Find-Python([string]$launcher, [string[]]$extra) {
     if (-not (Get-Command $launcher -ErrorAction SilentlyContinue)) { return $null }
+    # PS 5.1 turns a native command's stderr into a terminating error under
+    # 'Stop' (e.g. "No suitable Python runtime found"); treat that as "not found".
+    $ErrorActionPreference = 'Continue'
     # no double quotes in the code: Windows PowerShell 5.1 mangles them
     $code = 'import sys; print(sys.executable if sys.version_info >= (3, 9) else 0)'
-    $out = & $launcher @extra -c $code 2>$null
+    try { $out = & $launcher @extra -c $code 2>$null } catch { return $null }
     if ($LASTEXITCODE -eq 0 -and $out -and "$out" -ne '0') { return "$out".Trim() }
     return $null
 }
