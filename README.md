@@ -124,7 +124,7 @@ sh scripts/install-unix.sh uninstall && rm -r ~/.config/fortiauto               
 ## Development
 
 ```bash
-python -m unittest discover -s tests -t . -v   # 38 tests, no network needed
+python -m unittest discover -s tests -t . -v   # 41 tests, no network needed
 python -m tests.fake_fortigate                  # a fake portal to play with
 ```
 

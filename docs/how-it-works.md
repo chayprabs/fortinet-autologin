@@ -41,8 +41,10 @@
   session_seconds`. From 15 s before that until 60 s after, it probes every
   0.5 s, so the re-login usually lands within a second of the kick. It never
   logs you out early; it just watches closely.
-- **Backoff.** Network or portal errors retry after 2, 4, 8, 16, 30 s. A
-  rejected password waits 60 s between tries so it can't lock your account.
+- **Backoff.** Each login attempt pushes the next one out (2, 4, 8, 16, 30 s)
+  until the probe actually sees the internet, so a portal that answers
+  oddly can never be hammered. A rejected password waits 60 s between
+  tries so it can't lock your account.
 - **Credentials** are read fresh for each login (Windows Credential Manager,
   or a `0600` file on Linux/macOS, or env vars), so updating them needs no
   restart.
