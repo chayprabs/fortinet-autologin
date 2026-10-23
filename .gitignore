@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# never commit local secrets or runtime files
+credentials.json
+config.json
+state.json
+*.log
+*.log.1
+*.lock
