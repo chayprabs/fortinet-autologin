@@ -1,70 +1,121 @@
 # fortinet-autologin
 
 [![ci](https://github.com/chayprabs/fortinet-autologin/actions/workflows/ci.yml/badge.svg)](https://github.com/chayprabs/fortinet-autologin/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/chayprabs/fortinet-autologin)](https://github.com/chayprabs/fortinet-autologin/releases/latest)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)
+![dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen)
 
-Stay logged in to a FortiGate captive portal (college / office Wi-Fi) without
-babysitting it.
+**Never get kicked off your college Wi-Fi again.** fortiauto keeps you
+logged in to a FortiGate captive portal and logs you back in within about a
+second whenever the session runs out.
 
-FortiGate portals kick you out on a hard timer, often **14400 s (4 hours)**,
-and make you log in again. Downloads die, SSH drops, overnight jobs stall.
-`fortiauto` runs quietly in the background, tracks when the reset is due, and
-**logs you back in within about a second** of being kicked out. No browser, no clicking.
+FortiGate portals log you out on a hard timer, often **14400 seconds (4 hours)**,
+and make you type your password again. Downloads die, SSH drops, overnight
+training runs stall, and you only notice hours later. fortiauto runs silently
+in the background, tracks when the reset is coming, and handles the re-login
+for you, day and night, with no browser and no clicking.
 
-- **Fast:** probes every 2 s, every 0.5 s around the expected reset. Measured
-  re-login after a kick: about 1 s.
-- **Light:** about 17 MB of RAM (most of that is Python itself), one tiny HTTP
-  request every 2 s, disk writes only when something happens.
-- **Zero dependencies:** Python 3.9+ standard library only. Nothing gets `pip install`ed,
-  and it runs with `-S`, so your installed packages are never loaded.
-- **Leaves the rest of your machine alone:** it doesn't touch proxies, DNS, routes, firewall
-  or browser settings. It only acts when it sees the FortiGate login page, so on
-  any other network it does nothing.
-- **Keeps your password safe:** it's stored in Windows Credential Manager (or a `0600`
-  file on Linux/macOS), and only sent to a private-IP gateway.
-- **Fully automatic:** starts at logon, restarts itself, needs no admin/root,
-  and uninstalls with one command.
+| | |
+|---|---|
+| **Fast** | Re-logs in about 1 s after the kick (checks every 0.5 s around the expected reset, every 2 s otherwise) |
+| **Light** | About 17 MB RAM (mostly Python itself), one tiny request every 2 s, below-normal priority |
+| **Harmless** | Changes no system settings: no proxy, DNS, firewall or browser changes. Stays idle on every non-FortiGate network |
+| **Safe** | Password kept in Windows Credential Manager (or a `0600` file); only sent to a private-IP gateway |
+| **Zero dependencies** | Python standard library only. Nothing to `pip install` |
+| **Hands-off** | Starts at logon, survives sleep/wake, needs no admin, one-click uninstall |
 
-## Install
+---
 
-You need Python 3.9 or newer ([python.org](https://www.python.org/downloads/)).
+## Contents
+
+- [Quick start (Windows)](#quick-start-windows)
+- [Quick start (Linux / macOS)](#quick-start-linux--macos)
+- [Install from git](#install-from-git)
+- [Check that it works](#check-that-it-works)
+- [Commands](#commands)
+- [Configuration](#configuration)
+- [Update](#update)
+- [Uninstall](#uninstall)
+- [How it works](#how-it-works)
+- [FAQ](#faq) · [Troubleshooting](docs/troubleshooting.md) · [Security](SECURITY.md)
+
+---
+
+## Quick start (Windows)
+
+**1. Install Python** (skip if you have 3.9 or newer).
+Download it from [python.org/downloads](https://www.python.org/downloads/) and
+run the installer with the default options. To check, open PowerShell and
+run `py --version`.
+
+**2. Download fortiauto.**
+Get **[fortinet-autologin.zip](https://github.com/chayprabs/fortinet-autologin/releases/latest/download/fortinet-autologin.zip)**
+from the [latest release](https://github.com/chayprabs/fortinet-autologin/releases/latest),
+then right-click it and choose **Extract All**.
+
+**3. Double-click `install.cmd`** in the extracted folder.
+It doesn't need admin rights. A window opens and:
+- copies the program to `%LOCALAPPDATA%\fortiauto\app`
+- registers a background task that starts hidden at every logon
+- asks for your **portal username and password** once (the password isn't
+  shown as you type) and saves them in Windows Credential Manager
+
+**4. That's it.** You can delete the downloaded folder. From now on, whenever
+the portal logs you out, fortiauto logs you back in.
+
+<details>
+<summary>Prefer a single PowerShell command?</summary>
+
+```powershell
+$z="$env:TEMP\fortiauto.zip"; iwr https://github.com/chayprabs/fortinet-autologin/releases/latest/download/fortinet-autologin.zip -OutFile $z; Expand-Archive $z "$env:TEMP\fortiauto" -Force; & "$env:TEMP\fortiauto\fortinet-autologin\install.cmd"
+```
+</details>
+
+## Quick start (Linux / macOS)
+
+You need `python3` 3.9 or newer, which most systems already have.
+
+```bash
+curl -L -o fortiauto.zip https://github.com/chayprabs/fortinet-autologin/releases/latest/download/fortinet-autologin.zip
+unzip fortiauto.zip && cd fortinet-autologin
+sh scripts/install-unix.sh
+```
+
+The script installs to `~/.local/share/fortiauto/app`, sets up a
+`systemd --user` service (Linux) or a launchd agent (macOS), and asks for
+your portal login. Your credentials are saved to
+`~/.config/fortiauto/credentials.json` with `0600` permissions.
+
+On Linux, run `loginctl enable-linger $(id -un)` if you want it to keep
+running while you're logged out (for example, on a headless lab machine).
+
+## Install from git
 
 ```bash
 git clone https://github.com/chayprabs/fortinet-autologin
 cd fortinet-autologin
-```
-
-### Windows
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1
-```
-
-This copies the tool to `%LOCALAPPDATA%\fortiauto\app` and adds a per-user
-Task Scheduler task that runs hidden at every logon, at below-normal
-priority, even on battery.
-
-### Linux / macOS
-
-```bash
+# Windows: double-click install.cmd   or   powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1
+# Linux/macOS:
 sh scripts/install-unix.sh
 ```
 
-On Linux that's a `systemd --user` service; on macOS a launchd agent.
+Prefer pip? `pip install git+https://github.com/chayprabs/fortinet-autologin`
+gives you a `fortiauto` command. In that case you set up autostart yourself
+with `fortiauto run`.
 
-### Save your portal login (once)
+## Check that it works
 
+Open a terminal in the install folder:
+
+```powershell
+cd $env:LOCALAPPDATA\fortiauto\app      # Windows (PowerShell)
+```
 ```bash
-cd %LOCALAPPDATA%\fortiauto\app      # Windows
-cd ~/.local/share/fortiauto/app      # Linux / macOS
-python -m fortiauto set-credentials
+cd ~/.local/share/fortiauto/app         # Linux / macOS
 ```
 
-You're prompted for your username and password, and the password isn't shown
-as you type. The running service picks them up on its next login, with no restart needed.
-
-## Use
-
-There's nothing to do. To peek:
+then:
 
 ```text
 $ python -m fortiauto status
@@ -76,67 +127,129 @@ logins:      14
 log file:    C:\Users\you\AppData\Roaming\fortiauto\fortiauto.log
 ```
 
+On Windows, `py` works in place of `python`. While on campus, the
+`python -m fortiauto check` command prints `captive -> https://…/fgtauth?…`
+when the login page is up, and `online` otherwise.
+
+## Commands
+
+All commands are `python -m fortiauto <command>`, or `fortiauto <command>` if pip-installed.
+
 | command | what it does |
 |---|---|
-| `run` | the watcher (what autostart runs) |
-| `status` | running?, last login, countdown to next reset, last error |
+| `status` | is it running, last login, countdown to the next reset, last error |
 | `check` | probe once: `online` / `captive -> <portal url>` / `offline` |
 | `login` | log in right now if the portal is asking |
-| `set-credentials` / `clear-credentials` | manage the saved login |
-| `config` | create/show `config.json` (optional; defaults work) |
+| `set-credentials` | save or replace your portal username/password (prompted, hidden) |
+| `clear-credentials` | delete the saved login |
+| `config` | create/show `config.json` (optional, the defaults work) |
+| `run` | the background watcher itself (what autostart runs) |
 
-## Configure (optional)
+## Configuration
 
-`python -m fortiauto config` writes `config.json` with the defaults
-([config.example.json](config.example.json)):
+Optional. `python -m fortiauto config` creates `config.json` in
+`%APPDATA%\fortiauto` (Windows) or `~/.config/fortiauto` (Linux/macOS)
+with these defaults ([config.example.json](config.example.json)):
 
 | key | default | meaning |
 |---|---|---|
-| `session_seconds` | `14400` | your portal's hard timeout |
-| `check_interval` | `2.0` | seconds between probes |
-| `fast_interval` / `fast_window` | `0.5` / `15` | faster probes from 15 s before the expected reset until 60 s after |
-| `keepalive_interval` | `300` | hit the portal's keepalive URL (stops idle timeouts); `0` = off |
-| `allowed_hosts` | `[]` | extra gateway hostnames allowed to receive credentials (default: private IPs only) |
-| `verify_tls` | `false` | FortiGate portals usually use a self-signed cert |
-| `probe_url` | gstatic `generate_204` | any plain-HTTP URL that returns 204 when you're online |
+| `session_seconds` | `14400` | your portal's hard timeout (4 h) |
+| `check_interval` | `2.0` | seconds between checks |
+| `fast_interval` | `0.5` | seconds between checks near the expected reset |
+| `fast_window` | `15` | start fast checks this many seconds before the reset (they continue 60 s after) |
+| `keepalive_interval` | `300` | seconds between portal keepalives (stops *idle* logouts); `0` = off |
+| `allowed_hosts` | `[]` | extra gateway hostnames allowed to receive your login (private IPs are always allowed) |
+| `verify_tls` | `false` | verify the portal's HTTPS certificate (most FortiGates use a self-signed one) |
+| `probe_url` | `http://www.gstatic.com/generate_204` | any plain-HTTP URL that returns `204` when you're online |
+| `debug` | `false` | log every check, not just changes |
 
-## How it works
+After editing, restart the background task, or just sign out of Windows and back in.
 
-The watcher probes `http://www.gstatic.com/generate_204` over a raw socket.
-On a free connection that returns `204`; behind the portal, the FortiGate
-intercepts it and points to `https://<gateway>:1000/fgtauth?<magic>`. When it
-sees that, it spawns a short-lived worker that loads the form, posts
-`magic` + `4Tredir` + your username/password, saves the keepalive URL and the
-expected reset time, and exits. Details, safety notes and measurements:
-[docs/how-it-works.md](docs/how-it-works.md).
+## Update
 
-Problems? See [docs/troubleshooting.md](docs/troubleshooting.md).
+Download the new release (or `git pull`) and run the installer again
+(`install.cmd` or `sh scripts/install-unix.sh`). It replaces the program
+and restarts the task. Your login and config are kept.
 
 ## Uninstall
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1 -Purge   # Windows
+- **Windows:** double-click `uninstall.cmd`. That removes the task, the
+  program, your saved login, config and log. To keep your login and config,
+  run `powershell -ExecutionPolicy Bypass -File scripts\uninstall-windows.ps1`
+  without `-Purge`.
+- **Linux / macOS:** `sh scripts/install-unix.sh uninstall`, then
+  `rm -r ~/.config/fortiauto` to also delete your login and config.
+
+## How it works
+
 ```
-```bash
-sh scripts/install-unix.sh uninstall && rm -r ~/.config/fortiauto               # Linux / macOS
+every 2 s (0.5 s near the expected reset)
+GET http://www.gstatic.com/generate_204  (raw socket, ~200 bytes)
+   ├─ 204 ............................ online  → portal keepalive every 5 min
+   ├─ redirect/page with /fgtauth?… .. captive → short-lived worker:
+   │                                              GET login form → POST magic + 4Tredir
+   │                                              + username/password → save keepalive URL,
+   │                                              expected reset = now + 14400 s → exit
+   └─ anything else / error ........... offline or another network → do nothing
 ```
+
+- The long-running watcher only probes, so it stays tiny. The HTTPS login runs
+  in a separate process that exits right away.
+- Failed attempts back off (2 → 4 → 8 → 16 → 30 s). A rejected password waits
+  60 s between tries so your account can't get locked.
+- Your credentials are re-read on every login, so changing them needs no restart.
+
+Full details, safety notes and measurements are in [docs/how-it-works.md](docs/how-it-works.md).
+
+## FAQ
+
+**Is my Wi-Fi a FortiGate portal?** If the login page URL contains
+`/fgtauth?`, yes.
+**Does it change system settings?** No.
+**Battery/RAM?** About 17 MB of RAM and negligible CPU.
+**What happens at home?** Nothing; it stays idle.
+
+More answers in [docs/faq.md](docs/faq.md). If something's wrong, see
+[docs/troubleshooting.md](docs/troubleshooting.md) or
+[open an issue](https://github.com/chayprabs/fortinet-autologin/issues/new/choose).
 
 ## Development
 
 ```bash
-python -m unittest discover -s tests -t . -v   # 41 tests, no network needed
-python -m tests.fake_fortigate                  # a fake portal to play with
+python -m unittest discover -s tests -t . -v   # 41 tests, no network or install needed
+python -m tests.fake_fortigate                  # a fake FortiGate portal to play with
 ```
 
-The tests include a fake FortiGate server, so the whole login → kick →
-re-login cycle runs end to end on any machine.
+The test suite includes a fake FortiGate server, so the full login → kick →
+re-login cycle is exercised end to end on Windows, Linux and macOS in CI.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Notes
+## Project layout
+
+```
+fortiauto/            the program (standard library only)
+  probe.py            online / captive / offline detection
+  portal.py           FortiGate form parsing, login, keepalive, host safety check
+  daemon.py           the watch loop: timing, backoff, reset tracking
+  worker.py           runs logins in a short-lived child process
+  creds.py            Windows Credential Manager / 0600 file / env vars
+  net.py, cli.py, config.py, state.py, log.py, lock.py
+scripts/              installers for Windows, Linux (systemd), macOS (launchd)
+install.cmd           double-click installer for Windows
+uninstall.cmd         double-click uninstaller for Windows
+tests/                unit + end-to-end tests with a fake FortiGate
+docs/                 how it works, FAQ, troubleshooting
+```
+
+## Disclaimer
 
 This automates exactly what you'd do by hand in the browser, with your own
-account. Check your institution's acceptable-use policy. Similar scripts
-exist (e.g. [guptarohit/Fortinet-automatic-login](https://github.com/guptarohit/Fortinet-automatic-login));
-this one focuses on reacting within seconds, a small footprint, and
-installing cleanly as a background service.
+account. Check your institution's acceptable-use policy. Not affiliated with
+Fortinet. Similar scripts exist (e.g.
+[guptarohit/Fortinet-automatic-login](https://github.com/guptarohit/Fortinet-automatic-login));
+this one focuses on reacting within seconds, a tiny footprint, and installing
+cleanly as a background service.
 
-MIT licensed.
+## License
+
+[MIT](LICENSE) © 2026 Chaitanya Prabuddha
