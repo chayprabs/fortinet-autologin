@@ -10,6 +10,7 @@ Neither honours system proxy settings: captive-portal traffic must go straight
 to the gateway. Nothing global is touched, so other apps are unaffected.
 """
 
+import re
 import socket
 from urllib.parse import urljoin, urlsplit
 
@@ -27,6 +28,20 @@ class Response:
         self.body = body
 
 
+_CONTENT_LENGTH = re.compile(rb"(?im)^content-length:[ \t]*(\d+)")
+
+
+def _complete(data):
+    """True once a full response is buffered, so keep-alive servers can't stall us."""
+    head, sep, body = data.partition(b"\r\n\r\n")
+    if not sep:
+        return False
+    if b" 204 " in head.split(b"\r\n", 1)[0] + b" ":
+        return True
+    m = _CONTENT_LENGTH.search(head)
+    return bool(m) and len(body) >= int(m.group(1))
+
+
 def probe_get(url, timeout):
     """Minimal plain-HTTP GET. Raises OSError on any failure."""
     u = urlsplit(url)
@@ -35,16 +50,19 @@ def probe_get(url, timeout):
     path = (u.path or "/") + ("?" + u.query if u.query else "")
     req = ("GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\nCache-Control: no-cache\r\n\r\n"
            % (path, u.netloc, USER_AGENT)).encode("ascii")
-    chunks, size = [], 0
+    data = b""
     with socket.create_connection((u.hostname, u.port or 80), timeout=timeout) as s:
         s.sendall(req)
-        while size < MAX_BODY:
-            b = s.recv(8192)
-            if not b:
-                break
-            chunks.append(b)
-            size += len(b)
-    head, _, body = b"".join(chunks).decode("utf-8", "replace").partition("\r\n\r\n")
+        try:
+            while len(data) < MAX_BODY and not _complete(data):
+                b = s.recv(8192)
+                if not b:
+                    break
+                data += b
+        except socket.timeout:
+            if not data:  # a server that sent something and then stalled still counts
+                raise
+    head, _, body = data.decode("utf-8", "replace").partition("\r\n\r\n")
     lines = head.split("\r\n")
     parts = lines[0].split(" ", 2)
     if len(parts) < 2 or not parts[0].startswith("HTTP/") or not parts[1].isdigit():

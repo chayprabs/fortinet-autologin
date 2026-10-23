@@ -34,6 +34,30 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(probe.classify(200, None, body), (probe.OFFLINE, None))
         self.assertEqual(probe.classify(302, "https://hotel.example/login", ""), (probe.OFFLINE, None))
 
+    def test_keep_alive_server_does_not_stall_probe(self):
+        import socket
+        import threading
+        import time
+
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        body = b'<script>window.location="http://10.0.0.1:1000/fgtauth?ab12";</script>'
+
+        def serve():
+            c, _ = srv.accept()
+            c.recv(4096)
+            c.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s" % (len(body), body))
+            time.sleep(3)  # keep the connection open like a keep-alive server
+            c.close()
+
+        threading.Thread(target=serve, daemon=True).start()
+        t0 = time.monotonic()
+        result = probe.check("http://127.0.0.1:%d/" % srv.getsockname()[1], 2.0)
+        self.assertEqual(result, (probe.CAPTIVE, "http://10.0.0.1:1000/fgtauth?ab12"))
+        self.assertLess(time.monotonic() - t0, 1.0)
+        srv.close()
+
     def test_unreachable_is_offline(self):
         # Port 1 on loopback refuses immediately.
         self.assertEqual(probe.check("http://127.0.0.1:1/generate_204", 1.0), (probe.OFFLINE, None))
