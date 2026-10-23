@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fortinet-autologin"
+dynamic = ["version"]
+description = "Stay logged in to a FortiGate captive portal: auto re-login within seconds, zero dependencies."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["fortinet", "fortigate", "captive-portal", "autologin", "wifi", "keepalive"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Environment :: No Input/Output (Daemon)",
+  "Topic :: System :: Networking",
+]
+
+[project.scripts]
+fortiauto = "fortiauto.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/chayprabs/fortinet-autologin"
+
+[tool.setuptools]
+packages = ["fortiauto"]
+
+[tool.setuptools.dynamic]
+version = { attr = "fortiauto.__version__" }
