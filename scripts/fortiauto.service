@@ -1,0 +1,14 @@
+[Unit]
+Description=FortiGate captive portal auto-login (fortiauto)
+After=network.target
+
+[Service]
+ExecStart=@PYTHON@ -S -m fortiauto run
+WorkingDirectory=@APP@
+Restart=always
+RestartSec=5
+Nice=10
+MemoryMax=64M
+
+[Install]
+WantedBy=default.target
