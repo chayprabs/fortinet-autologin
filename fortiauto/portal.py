@@ -71,21 +71,20 @@ def find_keepalive(text, base):
 def check_host(url, allowed_hosts=()):
     """Refuse to send credentials anywhere except the campus gateway.
 
-    With no allow-list, only private/loopback IP addresses pass (FortiGate
-    portals are almost always on 10.x / 172.16-31.x / 192.168.x). Anything
+    Private/loopback/CGNAT IP addresses always pass (FortiGate portals are
+    almost always on 10.x / 172.16-31.x / 192.168.x / 100.64.x). Anything
     else must be listed in `allowed_hosts`. This stops a spoofed page on
     some other network from harvesting your password.
     """
-    host = (urlsplit(url).hostname or "").lower()
-    if allowed_hosts:
-        ok = host in [h.lower() for h in allowed_hosts]
-    else:
-        import ipaddress
+    import ipaddress
 
-        try:
-            ok = ipaddress.ip_address(host).is_private
-        except ValueError:
-            ok = False
+    host = (urlsplit(url).hostname or "").lower()
+    try:
+        ip = ipaddress.ip_address(host)
+        ok = ip.is_private or ip in ipaddress.ip_network("100.64.0.0/10")
+    except ValueError:
+        ok = False
+    ok = ok or host in [h.lower() for h in allowed_hosts]
     if not ok:
         raise PortalError(
             "refusing to send credentials to %r; if this is your gateway add it to "

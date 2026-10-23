@@ -41,7 +41,7 @@ class KeepaliveLinkTest(unittest.TestCase):
 class CheckHostTest(unittest.TestCase):
     def test_private_addresses_pass(self):
         for url in ("https://10.10.0.1:1003/fgtauth?x", "http://192.168.1.1:1000/",
-                    "https://172.16.5.4/", "http://127.0.0.1:8080/"):
+                    "https://172.16.5.4/", "http://127.0.0.1:8080/", "https://100.64.0.1:1003/"):
             portal.check_host(url)
 
     def test_public_or_named_hosts_are_refused(self):
@@ -49,10 +49,11 @@ class CheckHostTest(unittest.TestCase):
             with self.assertRaises(portal.PortalError):
                 portal.check_host(url)
 
-    def test_allow_list(self):
+    def test_allow_list_adds_to_private_ips(self):
         portal.check_host("https://Auth.College.edu:1003/", ["auth.college.edu"])
+        portal.check_host("https://10.0.0.1/", ["auth.college.edu"])  # still allowed
         with self.assertRaises(portal.PortalError):
-            portal.check_host("https://10.0.0.1/", ["auth.college.edu"])
+            portal.check_host("https://other.example/", ["auth.college.edu"])
 
 
 if __name__ == "__main__":
