@@ -15,6 +15,8 @@ usage: fortiauto <command>
   status             last login, countdown to the next reset, errors
   check              probe once: online / captive / offline
   login              log in right now if the portal is asking
+  set-credentials    save your portal username/password (prompted, hidden)
+  clear-credentials  delete them
 """ % __version__
 
 
@@ -120,11 +122,36 @@ def cmd_login():
     return 0
 
 
+def cmd_set_credentials():
+    import getpass
+
+    from . import creds
+
+    username = input("Portal username: ").strip()
+    password = getpass.getpass("Portal password (not shown): ")
+    if not username or not password:
+        print("nothing saved", file=sys.stderr)
+        return 1
+    where = creds.save(username, password)
+    print("saved to %s" % where)
+    print("the running daemon picks this up on its next login; no restart needed")
+    return 0
+
+
+def cmd_clear_credentials():
+    from . import creds
+
+    print("removed" if creds.clear() else "nothing was saved")
+    return 0
+
+
 COMMANDS = {
     "run": cmd_run,
     "status": cmd_status,
     "check": cmd_check,
     "login": cmd_login,
+    "set-credentials": cmd_set_credentials,
+    "clear-credentials": cmd_clear_credentials,
 }
 
 
