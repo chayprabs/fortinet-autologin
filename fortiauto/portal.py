@@ -20,6 +20,10 @@ class AuthFailed(PortalError):
     """The gateway rejected the username/password."""
 
 
+class NoCredentials(PortalError):
+    """Nothing saved yet: run `fortiauto set-credentials`."""
+
+
 _INPUT = re.compile(r"<input\b[^>]*>", re.I)
 _ATTR = re.compile(r"""([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))""")
 _FORM_ACTION = re.compile(r"""<form\b[^>]*?\baction\s*=\s*["']?([^"'\s>]*)""", re.I)

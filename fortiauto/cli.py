@@ -30,7 +30,7 @@ def _paths():
     }
 
 
-def cmd_run():
+def cmd_run(args):
     from . import daemon, lock, log, state
 
     cfg = config.load()
@@ -68,7 +68,7 @@ def _when(ts):
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
 
 
-def cmd_status():
+def cmd_status(args):
     from . import lock, state
 
     p = _paths()
@@ -92,7 +92,7 @@ def cmd_status():
     return 0
 
 
-def cmd_check():
+def cmd_check(args):
     from . import probe
 
     cfg = config.load()
@@ -101,29 +101,53 @@ def cmd_check():
     return 0 if status == probe.ONLINE else 1
 
 
-def cmd_login():
-    from . import creds, portal, probe
+def cmd_login(args):
+    from . import probe
 
     cfg = config.load()
     status, portal_url = probe.check(cfg.probe_url, cfg.timeout)
     if status != probe.CAPTIVE:
         print("no FortiGate login page right now (network: %s)" % status)
         return 0 if status == probe.ONLINE else 1
+    code = cmd_worker_login([portal_url])
+    print("logged in" if code == 0 else "login failed", file=sys.stderr)
+    return code
+
+
+def cmd_worker_login(args):
+    """Hidden: what the watcher runs in a child process. Prints the keepalive URL."""
+    from . import creds, portal, worker
+
+    cfg = config.load()
     c = creds.load()
     if not c:
         print("no credentials saved; run: fortiauto set-credentials", file=sys.stderr)
-        return 1
+        return worker.EXIT_NOCREDS
     try:
-        keepalive = portal.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
+        keepalive = portal.login(args[0], c[0], c[1], verify_tls=cfg.verify_tls,
                                  timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+    except portal.AuthFailed as e:
+        print(e, file=sys.stderr)
+        return worker.EXIT_AUTH
     except (OSError, portal.PortalError) as e:
-        print("login failed: %s" % e, file=sys.stderr)
+        print(e, file=sys.stderr)
+        return worker.EXIT_ERROR
+    print(keepalive or "")
+    return worker.EXIT_OK
+
+
+def cmd_worker_keepalive(args):
+    """Hidden: one keepalive hit in a child process."""
+    from . import portal
+
+    cfg = config.load()
+    try:
+        return 0 if portal.keepalive(args[0], verify_tls=cfg.verify_tls, timeout=cfg.timeout) else 1
+    except OSError:
         return 1
-    print("logged in" + (" (keepalive: %s)" % keepalive if keepalive else ""))
-    return 0
 
 
-def cmd_set_credentials():
+def cmd_set_credentials(args):
     import getpass
 
     from . import creds
@@ -139,14 +163,14 @@ def cmd_set_credentials():
     return 0
 
 
-def cmd_clear_credentials():
+def cmd_clear_credentials(args):
     from . import creds
 
     print("removed" if creds.clear() else "nothing was saved")
     return 0
 
 
-def cmd_config():
+def cmd_config(args):
     import json
 
     path = config.config_path()
@@ -168,6 +192,8 @@ COMMANDS = {
     "login": cmd_login,
     "set-credentials": cmd_set_credentials,
     "clear-credentials": cmd_clear_credentials,
+    "_login": cmd_worker_login,
+    "_keepalive": cmd_worker_keepalive,
 }
 
 
@@ -184,4 +210,4 @@ def main(argv=None):
     if fn is None:
         print("unknown command: %s\n\n%s" % (cmd, USAGE), file=sys.stderr)
         return 2
-    return fn() or 0
+    return fn(argv[1:]) or 0
