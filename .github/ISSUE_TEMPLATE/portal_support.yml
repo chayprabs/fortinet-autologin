@@ -1,0 +1,25 @@
+name: My college's portal isn't recognised
+description: "\"page has no FortiGate login form\", a disclaimer page, or a different login page"
+labels: [portal-support]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks! The HTML of your login page is what's needed to add support. **Remove your name, student ID and anything personal**, and never include your password."
+  - type: input
+    id: url
+    attributes:
+      label: Login page URL with the token removed
+      placeholder: https://10.x.x.x:1003/fgtauth?XXXX
+    validations:
+      required: true
+  - type: textarea
+    id: html
+    attributes:
+      label: Page HTML (right click, View page source)
+      render: html
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else (disclaimer page, extra fields, timeout length)
