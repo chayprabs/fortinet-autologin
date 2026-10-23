@@ -17,6 +17,7 @@ usage: fortiauto <command>
   login              log in right now if the portal is asking
   set-credentials    save your portal username/password (prompted, hidden)
   clear-credentials  delete them
+  config             create/show config.json (optional; defaults work)
 """ % __version__
 
 
@@ -145,7 +146,22 @@ def cmd_clear_credentials():
     return 0
 
 
+def cmd_config():
+    import json
+
+    path = config.config_path()
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(config.DEFAULTS, f, indent=2)
+        print("wrote defaults to %s" % path)
+    else:
+        print(path)
+    print("edit it, then restart the daemon (or just log out and back in)")
+    return 0
+
+
 COMMANDS = {
+    "config": cmd_config,
     "run": cmd_run,
     "status": cmd_status,
     "check": cmd_check,
