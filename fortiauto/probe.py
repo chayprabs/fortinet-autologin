@@ -30,7 +30,7 @@ def classify(status, location, body):
 def check(url, timeout):
     """Probe once. Never raises: network trouble is reported as OFFLINE."""
     try:
-        r = net.fetch(url, timeout=timeout)
+        r = net.probe_get(url, timeout)
     except OSError:
         return OFFLINE, None
     return classify(r.status, r.location, r.body)

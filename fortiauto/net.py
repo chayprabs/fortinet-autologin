@@ -1,12 +1,16 @@
-"""Tiny HTTP client on top of http.client.
+"""HTTP helpers.
 
-Why not urllib.request: it imports a lot more (memory), and it honours system
-proxy settings, which is wrong for captive-portal traffic that must go straight
-to the gateway. This talks directly to the host and never touches any global
-setting, so other apps on the machine are unaffected.
+- `probe_get`: bare-socket HTTP/1.0 GET used by the every-2-seconds probe.
+  It needs only `socket`, so the resident watcher never loads http.client,
+  email or ssl (those alone are several MB).
+- `fetch`: http.client-based GET/POST for the portal (HTTPS, redirects).
+  Only the short-lived login worker uses it.
+
+Neither honours system proxy settings: captive-portal traffic must go straight
+to the gateway. Nothing global is touched, so other apps are unaffected.
 """
 
-import http.client
+import socket
 from urllib.parse import urljoin, urlsplit
 
 USER_AGENT = "fortiauto/1.0"
@@ -25,8 +29,36 @@ class Response:
         self.body = body
 
 
+def probe_get(url, timeout):
+    """Minimal plain-HTTP GET. Raises OSError on any failure."""
+    u = urlsplit(url)
+    if u.scheme != "http":
+        return fetch(url, timeout=timeout)
+    path = (u.path or "/") + ("?" + u.query if u.query else "")
+    req = ("GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\nCache-Control: no-cache\r\n\r\n"
+           % (path, u.netloc, USER_AGENT)).encode("ascii")
+    chunks, size = [], 0
+    with socket.create_connection((u.hostname, u.port or 80), timeout=timeout) as s:
+        s.sendall(req)
+        while size < MAX_BODY:
+            b = s.recv(8192)
+            if not b:
+                break
+            chunks.append(b)
+            size += len(b)
+    head, _, body = b"".join(chunks).decode("utf-8", "replace").partition("\r\n\r\n")
+    lines = head.split("\r\n")
+    parts = lines[0].split(" ", 2)
+    if len(parts) < 2 or not parts[0].startswith("HTTP/") or not parts[1].isdigit():
+        raise OSError("not an HTTP response")
+    location = None
+    for line in lines[1:]:
+        if line.lower().startswith("location:"):
+            location = line.split(":", 1)[1].strip()
+    return Response(int(parts[1]), url, location, body)
+
+
 def _ssl_context(verify):
-    # ssl is imported lazily: the idle probe is plain HTTP and never needs it.
     if verify not in _contexts:
         import ssl
 
@@ -39,6 +71,8 @@ def _ssl_context(verify):
 
 
 def _request(url, data, timeout, verify_tls):
+    import http.client
+
     u = urlsplit(url)
     if u.scheme == "https":
         conn = http.client.HTTPSConnection(
