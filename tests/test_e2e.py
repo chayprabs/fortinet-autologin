@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 from fortiauto import config, portal, probe
 from fortiauto.daemon import Daemon
@@ -28,9 +29,11 @@ class E2ETest(unittest.TestCase):
         self.gw.stop()
         self.tmp.cleanup()
 
-    def daemon(self, password="hunter2", **cfg):
-        return Daemon(make_cfg(self.gw, **cfg), self.state,
-                      get_creds=lambda: ("student", password))
+    def daemon(self, password="hunter2", **over):
+        cfg = make_cfg(self.gw, **over)
+        return Daemon(cfg, self.state,
+                      login=lambda url: portal.login(url, "student", password, timeout=2),
+                      keepalive=lambda url: portal.keepalive(url, timeout=2))
 
     def test_probe_sees_portal_then_login_opens_internet(self):
         status, url = probe.check(self.gw.probe_url, 2)
@@ -72,6 +75,27 @@ class E2ETest(unittest.TestCase):
             d.tick()
         self.assertEqual(self.gw.failed_logins, 1, "must not hammer the gateway")
         self.assertIn("rejected", self.state.get("last_error"))
+
+    def test_daemon_through_real_worker_process(self):
+        env = {"FORTIAUTO_HOME": self.tmp.name, "FORTIAUTO_USERNAME": "student",
+               "FORTIAUTO_PASSWORD": "hunter2"}
+        with mock.patch.dict(os.environ, env):
+            d = Daemon(make_cfg(self.gw), self.state)  # default = subprocess worker
+            t0 = time.monotonic()
+            d.tick()
+            self.assertTrue(self.gw.authed)
+            self.assertLess(time.monotonic() - t0, 5)
+            self.assertTrue(self.state.get("keepalive_url").startswith(self.gw.base))
+            os.environ["FORTIAUTO_PASSWORD"] = "wrong"
+            self.gw.expire()
+            d.retry_at = 0
+            d.tick()
+            self.assertIn("rejected", self.state.get("last_error"))
+            del os.environ["FORTIAUTO_PASSWORD"]
+            os.environ.pop("FORTIAUTO_USERNAME")
+            d.retry_at = 0
+            d.tick()  # no creds -> waits, no crash
+            self.assertGreater(d.retry_at, time.time() + 20)
 
     def test_daemon_sends_keepalive(self):
         d = self.daemon(keepalive_interval=0.01)

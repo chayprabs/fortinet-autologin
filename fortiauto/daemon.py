@@ -2,7 +2,7 @@
 
 import time
 
-from . import creds, log, portal, probe
+from . import log, portal, probe, worker
 from .probe import CAPTIVE, ONLINE
 
 
@@ -13,17 +13,17 @@ def _clock_time(ts):
 class Daemon:
     """One `tick()` = one probe plus whatever it calls for. Returns seconds to sleep.
 
-    Collaborators are injectable so tests can run it without a network.
+    login(portal_url) -> keepalive_url and keepalive(url) -> bool default to the
+    out-of-process worker; tests inject in-process or fake versions.
     """
 
-    def __init__(self, cfg, state, check=probe.check, login=portal.login,
-                 keepalive=portal.keepalive, get_creds=creds.load, clock=time.time):
+    def __init__(self, cfg, state, check=probe.check, login=None, keepalive=None,
+                 clock=time.time):
         self.cfg = cfg
         self.state = state
         self.check = check
-        self.login = login
-        self.keepalive = keepalive
-        self.get_creds = get_creds
+        self.login = login or (lambda url: worker.login(url, cfg))
+        self.keepalive = keepalive or (lambda url: worker.keepalive(url, cfg))
         self.clock = clock
         self.last = None
         self.retry_at = 0.0
@@ -63,7 +63,7 @@ class Daemon:
             return
         self.last_keepalive = now
         try:
-            ok = self.keepalive(url, verify_tls=cfg.verify_tls, timeout=cfg.timeout)
+            ok = self.keepalive(url)
             log.debug("keepalive %s" % ("ok" if ok else "not accepted"))
         except OSError as e:
             log.debug("keepalive failed: %s" % e)
@@ -72,17 +72,16 @@ class Daemon:
         cfg = self.cfg
         if now < self.retry_at:
             return
-        # Read every time so `fortiauto set-credentials` works without a restart.
-        c = self.get_creds()
-        if not c:
+        t0 = self.clock()
+        try:
+            # Credentials are read on every login, so `fortiauto set-credentials`
+            # takes effect without a restart.
+            keepalive_url = self.login(portal_url)
+        except portal.NoCredentials:
             log.warn("portal is asking for a login but no credentials are saved; "
                      "run: fortiauto set-credentials")
             self.retry_at = now + 30
             return
-        t0 = self.clock()
-        try:
-            keepalive_url = self.login(portal_url, c[0], c[1], verify_tls=cfg.verify_tls,
-                                       timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
         except portal.AuthFailed as e:
             # Back off hard: hammering a wrong password can lock the account.
             log.error("%s; retrying in 60s (fix with: fortiauto set-credentials)" % e)

@@ -23,20 +23,21 @@ class Harness:
         self.keepalives = []
         cfg = SimpleNamespace(**config.DEFAULTS)
         self.d = Daemon(cfg, State(os.path.join(tmp, "s.json")), check=self.check,
-                        login=self.login, keepalive=self.keepalive,
-                        get_creds=lambda: self.creds, clock=lambda: self.now)
+                        login=self.login, keepalive=self.keepalive, clock=lambda: self.now)
 
     def check(self, url, timeout):
         return (self.net, PORTAL if self.net == CAPTIVE else None)
 
-    def login(self, url, user, pw, **kw):
+    def login(self, url):
+        if not self.creds:
+            raise portal.NoCredentials("none")
         self.logins.append(self.now)
         if self.login_error:
             raise self.login_error
         self.net = ONLINE  # like the real gateway: login opens the internet
         return "https://10.0.0.1:1003/keepalive?k"
 
-    def keepalive(self, url, **kw):
+    def keepalive(self, url):
         self.keepalives.append(self.now)
         return True
 
