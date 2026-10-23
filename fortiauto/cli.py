@@ -12,6 +12,7 @@ usage: fortiauto <command>
 
   run                watch the connection and log in automatically
                      (this is what the autostart task runs)
+  status             last login, countdown to the next reset, errors
 """ % __version__
 
 
@@ -51,8 +52,44 @@ def cmd_run():
     return 0
 
 
+def _duration(seconds):
+    seconds = int(abs(seconds))
+    h, rest = divmod(seconds, 3600)
+    m, s = divmod(rest, 60)
+    return "%dh %02dm" % (h, m) if h else "%dm %02ds" % (m, s)
+
+
+def _when(ts):
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+
+
+def cmd_status():
+    from . import lock, state
+
+    p = _paths()
+    st = state.State(p["state"])
+    now = time.time()
+    print("daemon:      %s" % ("running" if lock.is_held(p["lock"]) else "NOT running"))
+    print("network:     %s" % st.get("last_state", "unknown"))
+    logged_in, expires = st.get("logged_in_at"), st.get("expires_at")
+    if logged_in:
+        print("last login:  %s (%s ago)" % (_when(logged_in), _duration(now - logged_in)))
+    if expires:
+        if expires > now:
+            print("next reset:  %s (in %s) - will re-login automatically"
+                  % (_when(expires), _duration(expires - now)))
+        else:
+            print("next reset:  was due %s ago" % _duration(now - expires))
+    print("logins:      %d" % st.get("logins", 0))
+    if st.get("last_error"):
+        print("last error:  %s" % st["last_error"])
+    print("log file:    %s" % p["log"])
+    return 0
+
+
 COMMANDS = {
     "run": cmd_run,
+    "status": cmd_status,
 }
 
 
