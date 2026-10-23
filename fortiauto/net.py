@@ -7,7 +7,7 @@ setting, so other apps on the machine are unaffected.
 """
 
 import http.client
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 USER_AGENT = "fortiauto/1.0"
 MAX_BODY = 64 * 1024  # portal pages are small; never buffer more than this
@@ -63,6 +63,15 @@ def _request(url, data, timeout, verify_tls):
         conn.close()
 
 
-def fetch(url, data=None, timeout=5.0, verify_tls=True):
-    """GET (or POST form bytes) and return a Response. Network errors raise OSError."""
-    return _request(url, data, timeout, verify_tls)
+def fetch(url, data=None, timeout=5.0, verify_tls=True, follow=0):
+    """GET (or POST form bytes) and return a Response. Network errors raise OSError.
+
+    follow: how many redirects to chase (FortiGate often bounces :1000 -> :1003).
+    """
+    r = _request(url, data, timeout, verify_tls)
+    while follow > 0 and r.status in (301, 302, 303, 307, 308) and r.location:
+        follow -= 1
+        if r.status in (301, 302, 303):
+            data = None  # browsers turn these into a GET
+        r = _request(urljoin(r.url, r.location), data, timeout, verify_tls)
+    return r
