@@ -46,7 +46,7 @@ else
     systemctl --user daemon-reload
     systemctl --user enable --now fortiauto.service
     echo "systemd user service enabled: $UNIT"
-    echo "tip: 'loginctl enable-linger $USER' keeps it running when you're logged out"
+    echo "tip: 'loginctl enable-linger $(id -un)' keeps it running when you're logged out"
 fi
 
 echo

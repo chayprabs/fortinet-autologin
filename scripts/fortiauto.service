@@ -1,6 +1,5 @@
 [Unit]
 Description=FortiGate captive portal auto-login (fortiauto)
-After=network.target
 
 [Service]
 ExecStart=@PYTHON@ -S -m fortiauto run
