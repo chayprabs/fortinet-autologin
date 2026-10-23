@@ -110,14 +110,21 @@ def login(portal_url, username, password, verify_tls=False, timeout=5.0, allowed
     # we do not need to load. The keepalive link is in this response.
     r = net.fetch(target, urlencode(fields).encode(), timeout=timeout, verify_tls=verify_tls)
     keepalive = find_keepalive(r.location, target) or find_keepalive(r.body, target)
-    if keepalive is None:
-        try:
-            parse_form(r.body)
-        except PortalError:
-            pass  # not the login form again, so it most likely worked
-        else:
-            raise AuthFailed("gateway rejected the username or password")
-    return keepalive
+    if keepalive:
+        return keepalive
+    if r.status >= 400:
+        raise PortalError("gateway answered HTTP %d to the login" % r.status)
+    # Anything that looks like "back to the login page" is a rejection, so the
+    # daemon applies its long backoff instead of re-posting a bad password.
+    text = ((r.location or "") + r.body).lower()
+    try:
+        parse_form(r.body)
+        rejected = True
+    except PortalError:
+        rejected = "fgtauth" in text or "authentication failed" in text
+    if rejected:
+        raise AuthFailed("gateway rejected the username or password")
+    return None  # no keepalive link, but no sign of failure either
 
 
 def keepalive(url, verify_tls=False, timeout=5.0):

@@ -64,6 +64,12 @@ class E2ETest(unittest.TestCase):
         self.assertEqual(self.gw.logins, 2)
         self.assertLess(time.monotonic() - t0, 5, "re-login must take well under 5 s")
 
+    def test_rejection_by_redirect_is_auth_failed(self):
+        self.gw.fail_redirect = True
+        _, url = probe.check(self.gw.probe_url, 2)
+        with self.assertRaises(portal.AuthFailed):
+            portal.login(url, "student", "nope", timeout=2)
+
     def test_daemon_handles_javascript_intercept(self):
         self.gw.js_intercept = True
         self.daemon().tick()

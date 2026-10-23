@@ -32,6 +32,7 @@ class FakeFortiGate:
     def __init__(self, username="student", password="hunter2", js_intercept=False):
         self.username, self.password = username, password
         self.js_intercept = js_intercept  # intercept with a JS page instead of a 303
+        self.fail_redirect = False  # answer a bad login with a 303 instead of a page
         self.authed = False
         self.magic = secrets.token_hex(8)
         self.token = None
@@ -100,6 +101,9 @@ class FakeFortiGate:
                 else:
                     gw.failed_logins += 1
                     gw.magic = secrets.token_hex(8)
+                    if gw.fail_redirect:
+                        loc = "%s/fgtauth?%s" % (gw.base, gw.magic)
+                        return self._send(303, headers={"Location": loc})
                     err = "<h2>Firewall authentication failed. Please try again.</h2>"
                     self._send(200, LOGIN_PAGE.format(magic=gw.magic, error=err))
 
