@@ -5,7 +5,11 @@ Thanks for helping. A few ground rules keep this tool small and safe.
 ## Principles
 
 - **Standard library only.** No third-party dependencies, ever. That's what
-  lets it run with `python -S` and stay around 17 MB of RAM.
+  lets it run with `python -I -S` and keep only ~2.5 MB of RAM in use.
+- **Keep the watcher's imports minimal.** `daemon.py`, `probe.py`, `state.py`,
+  `log.py`, `lock.py`, `config.py` and `worker.py` must not import `re`, `json`,
+  `socket`, `subprocess`, `urllib` or `ssl` at module level. Heavy work belongs
+  in the worker child process.
 - **Never touch anything global.** No proxy, DNS, route, firewall or browser
   changes. Per-user files and one startup entry only.
 - **Only act on FortiGate.** Detection must stay specific to the `fgtauth`

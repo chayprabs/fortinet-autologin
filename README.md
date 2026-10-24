@@ -19,7 +19,7 @@ for you, day and night, with no browser and no clicking.
 | | |
 |---|---|
 | **Fast** | Re-logs in about 1 s after the kick (checks every 0.5 s around the expected reset, every 2 s otherwise) |
-| **Light** | About 17 MB RAM (mostly Python itself), one tiny request every 2 s, below-normal priority |
+| **Light** | About **2.5 MB** of RAM in use on Windows (~7 MB reserved), one tiny request every 2 s, below-normal priority |
 | **Harmless** | Changes no system settings: no proxy, DNS, firewall or browser changes. Stays idle on every non-FortiGate network |
 | **Safe** | Password kept in Windows Credential Manager (or a `0600` file); only sent to a gateway on your private network |
 | **Zero dependencies** | Python standard library only. Nothing to `pip install` |
@@ -124,7 +124,7 @@ then:
 
 ```text
 $ python -m fortiauto status
-fortiauto:   1.0.2
+fortiauto:   1.1.0
 daemon:      running
 network:     online
 last login:  2026-10-24 09:12:03 (1h 47m ago)
@@ -212,7 +212,7 @@ Full details, safety notes and measurements are in [docs/how-it-works.md](docs/h
 **Is my Wi-Fi a FortiGate portal?** If the login page URL contains
 `/fgtauth?`, yes.
 **Does it change system settings?** No.
-**Battery/RAM?** About 17 MB of RAM and negligible CPU.
+**Battery/RAM?** About 2.5 MB of RAM in use and negligible CPU.
 **What happens at home?** Nothing; it stays idle.
 
 More answers in [docs/faq.md](docs/faq.md). If something's wrong, see
@@ -222,7 +222,7 @@ More answers in [docs/faq.md](docs/faq.md). If something's wrong, see
 ## Development
 
 ```bash
-python -m unittest discover -s tests -t . -v   # 44 tests, no network or install needed
+python -m unittest discover -s tests -t . -v   # 48 tests, no network or install needed
 python -m tests.fake_fortigate                  # a fake FortiGate portal to play with
 ```
 

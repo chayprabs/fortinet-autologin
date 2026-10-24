@@ -10,8 +10,8 @@ When you connect, the login page's address looks like
 
 ### Will it slow down my laptop or eat battery?
 
-No. It sends one ~200-byte HTTP request every 2 seconds, uses about 17 MB of
-RAM (mostly the Python interpreter itself), runs at below-normal priority,
+No. It sends one ~200-byte HTTP request every 2 seconds, keeps about 2.5 MB
+of RAM in use (Task Manager's number; ~7 MB reserved), runs at below-normal priority,
 and only writes to disk when something happens (a login, an error). There's
 no browser and no polling of anything else.
 

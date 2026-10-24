@@ -33,10 +33,14 @@
 
 - **Only the FortiGate pattern triggers anything.** A hotel or airport portal,
   your home Wi-Fi, or no network at all: the tool stays idle.
-- **The watcher is tiny.** The probe uses a raw socket, so the long-running
-  process never imports `http.client`, `email` or `ssl`. Logins and keepalives
-  run in a short-lived, isolated child process (`python -I -S ... _login <url>`)
-  that exits right away.
+- **The watcher is tiny.** The long-running process loads only `os` and
+  the built-in `_socket` module. No `socket`, `re`, `json`, `subprocess`,
+  `urllib`, `ssl` or `http.client`, and no `runpy`, since it's started as
+  `pythonw -I -S fortiauto/launch.py run`. Logins and keepalives run in a
+  short-lived, isolated child process (started with `os.spawnv`) that exits
+  right away. On Windows that child also asks Windows to trim the watcher's
+  idle memory pages, and `gc.freeze()` stops the garbage collector from
+  pulling start-up objects back into RAM.
 - **Tracking the reset.** After each login it records `expires_at = now +
   session_seconds`. From 15 s before that until 60 s after, it probes every
   0.5 s, so the re-login usually lands within a second of the kick. It never
@@ -64,11 +68,15 @@
 
 ## Footprint (measured on Windows 11, Python 3.14)
 
-| | working set |
-|---|---|
-| bare `python -S` doing nothing | ~10.9 MB |
-| fortiauto watcher, after logins and keepalives | ~17.5 MB |
-| CPU | one ~200-byte HTTP request every 2 s |
-| disk writes | only on events (login, error, state change) |
+| | working set (RAM in use) | private (committed) |
+|---|---|---|
+| bare `python -S` doing nothing | 10.5 MB | 5.6 MB |
+| fortiauto 1.0.x watcher | ~16.4 MB | ~9.7 MB |
+| **fortiauto 1.1 watcher**, over 90 s with logins + keepalives | **~2.4 MB** | **~7.4 MB** |
+| CPU | one ~200-byte HTTP request every 2 s | |
+| disk writes | only on events (login, error, state change) | |
 
-Most of that is the Python interpreter itself; the tool adds ~6 MB.
+"Working set" is the physical RAM in use, which is what Task Manager shows. The
+trimmed pages aren't lost: Windows hands them back the instant they're
+touched, and the loop only ever touches about 2.5 MB of them. On Linux/macOS
+there's no trimming, but the slimmer imports still save about 5 MB.
