@@ -35,7 +35,7 @@ def cmd_run(args):
 
     cfg = config.load()
     p = _paths()
-    held = lock.acquire(p["lock"])
+    held = lock.acquire_waiting(p["lock"])
     if held is None:
         print("fortiauto is already running.")
         return 1

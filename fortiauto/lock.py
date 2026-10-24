@@ -1,6 +1,7 @@
 """One running daemon per user. The OS drops the lock if the process dies."""
 
 import os
+import time
 
 
 def acquire(path):
@@ -20,6 +21,17 @@ def acquire(path):
         f.close()
         return None
     return f
+
+
+def acquire_waiting(path, seconds=10.0, step=0.5):
+    """Like acquire, but give an old copy that is still exiting (an upgrade or a
+    quick restart) a few seconds to let go before deciding we're a duplicate."""
+    deadline = time.time() + seconds
+    while True:
+        f = acquire(path)
+        if f is not None or time.time() >= deadline:
+            return f
+        time.sleep(step)
 
 
 def is_held(path):

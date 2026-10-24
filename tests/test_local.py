@@ -93,6 +93,19 @@ class LocalTest(unittest.TestCase):
                              capture_output=True, text=True, cwd=self.tmp.name)
         self.assertEqual(out.stdout.strip(), fortiauto.__version__)
 
+    def test_lock_waits_for_an_exiting_copy(self):
+        import threading
+
+        path = os.path.join(self.tmp.name, "y.lock")
+        old = lock.acquire(path)
+        threading.Timer(0.6, old.close).start()  # the old copy finishes exiting
+        new = lock.acquire_waiting(path, seconds=5, step=0.1)
+        self.assertIsNotNone(new)
+        new.close()
+        held = lock.acquire(path)
+        self.assertIsNone(lock.acquire_waiting(path, seconds=0.3, step=0.1))  # real duplicate
+        held.close()
+
     def test_lock_allows_one_instance(self):
         path = os.path.join(self.tmp.name, "x.lock")
         first = lock.acquire(path)
