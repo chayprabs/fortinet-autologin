@@ -10,18 +10,7 @@ import re
 from urllib.parse import urlencode, urljoin, urlsplit
 
 from . import net
-
-
-class PortalError(Exception):
-    """The portal did not behave like a FortiGate login portal."""
-
-
-class AuthFailed(PortalError):
-    """The gateway rejected the username/password."""
-
-
-class NoCredentials(PortalError):
-    """Nothing saved yet: run `fortiauto set-credentials`."""
+from .errors import AuthFailed, NoCredentials, PortalError  # noqa: F401 (re-exported)
 
 
 _INPUT = re.compile(r"<input\b[^>]*>", re.I)
