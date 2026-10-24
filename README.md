@@ -124,6 +124,7 @@ then:
 
 ```text
 $ python -m fortiauto status
+fortiauto:   1.0.2
 daemon:      running
 network:     online
 last login:  2026-10-24 09:12:03 (1h 47m ago)
@@ -154,7 +155,7 @@ All commands are `python -m fortiauto <command>`, or `fortiauto <command>` if pi
 
 Optional. `python -m fortiauto config` creates `config.json` in
 `%APPDATA%\fortiauto` (Windows) or `~/.config/fortiauto` (Linux/macOS)
-with these defaults ([config.example.json](config.example.json)):
+with these defaults:
 
 | key | default | meaning |
 |---|---|---|
