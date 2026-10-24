@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-10-24
+
+### Added
+- `fortiauto status` shows the installed version.
+- README: verified on a real campus (BITS Pilani, re-login in 0.9 s).
+
+### Removed
+- `config.example.json`. It duplicated the built-in defaults; run
+  `fortiauto config` to get an up-to-date file, or see the table in the README.
+
+The login logic is unchanged from 1.0.1.
+
 ## [1.0.1] - 2026-10-24
 
 ### Fixed
@@ -43,5 +55,6 @@ First release.
 - Docs: README, how it works, FAQ, troubleshooting, security policy,
   contributing guide, issue and PR templates.
 
+[1.0.2]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.2
 [1.0.1]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.1
 [1.0.0]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.0
