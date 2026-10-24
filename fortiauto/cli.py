@@ -74,6 +74,7 @@ def cmd_status(args):
     p = _paths()
     st = state.State(p["state"])
     now = time.time()
+    print("fortiauto:   %s" % __version__)
     print("daemon:      %s" % ("running" if lock.is_held(p["lock"]) else "NOT running"))
     print("network:     %s" % st.get("last_state", "unknown"))
     logged_in, expires = st.get("logged_in_at"), st.get("expires_at")
