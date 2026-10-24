@@ -25,6 +25,11 @@ for you, day and night, with no browser and no clicking.
 | **Zero dependencies** | Python standard library only. Nothing to `pip install` |
 | **Hands-off** | Starts at logon, survives sleep/wake, needs no admin, one-click uninstall |
 
+**Verified on a real campus:** BITS Pilani's FortiGate (`fw.bits-pilani.ac.in:8090`).
+After a portal logout it detected the login page and logged back in within
+**0.9 s**, and the internet was back about 3 s after the kick. Got it working on
+your campus? Open an issue or PR to add it here.
+
 ---
 
 ## Contents
