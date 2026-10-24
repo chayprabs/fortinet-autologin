@@ -25,7 +25,7 @@ if (Test-Path $lnk) { Remove-Item -Force $lnk; Write-Host "Removed $lnk" }
 
 # Stop a running copy started from the Startup shortcut.
 Get-CimInstance Win32_Process -Filter "Name like 'python%'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like '*-m fortiauto run*' } |
+    Where-Object { $_.CommandLine -like '*fortiauto*' -and $_.CommandLine -like '* run*' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; Write-Host "Stopped PID $($_.ProcessId)" }
 
 $app = Join-Path $env:LOCALAPPDATA 'fortiauto'

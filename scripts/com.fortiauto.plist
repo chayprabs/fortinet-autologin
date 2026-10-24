@@ -7,9 +7,9 @@
   <key>ProgramArguments</key>
   <array>
     <string>@PYTHON@</string>
+    <string>-I</string>
     <string>-S</string>
-    <string>-m</string>
-    <string>fortiauto</string>
+    <string>@APP@/fortiauto/launch.py</string>
     <string>run</string>
   </array>
   <key>WorkingDirectory</key>

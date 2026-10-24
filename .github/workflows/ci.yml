@@ -25,8 +25,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit + end-to-end tests (stdlib only, nothing to install)
         run: python -m unittest discover -s tests -t . -v
-      - name: CLI smoke test without site-packages
-        run: python -S -m fortiauto --help
+      - name: CLI smoke test, isolated like the background task
+        run: python -I -S fortiauto/launch.py --help
       - name: Installer syntax
         if: runner.os != 'Windows'
         run: sh -n scripts/install-unix.sh

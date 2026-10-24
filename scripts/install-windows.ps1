@@ -52,8 +52,10 @@ Write-Host "Copied:  $dest\fortiauto"
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 
 $user = "$env:USERDOMAIN\$env:USERNAME"
+# launch.py with -I -S: no runpy, no site-packages, nothing on the machine can interfere.
+$taskArgs = "-I -S `"$(Join-Path $dest 'fortiauto\launch.py')`" run"
 try {
-    $action = New-ScheduledTaskAction -Execute $pythonw -Argument '-S -m fortiauto run' -WorkingDirectory $dest
+    $action = New-ScheduledTaskAction -Execute $pythonw -Argument $taskArgs -WorkingDirectory $dest
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $settings = New-ScheduledTaskSettingsSet `
         -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
@@ -71,11 +73,11 @@ catch {
     $sh = New-Object -ComObject WScript.Shell
     $s = $sh.CreateShortcut($lnk)
     $s.TargetPath = $pythonw
-    $s.Arguments = '-S -m fortiauto run'
+    $s.Arguments = $taskArgs
     $s.WorkingDirectory = $dest
     $s.WindowStyle = 7
     $s.Save()
-    Start-Process -FilePath $pythonw -ArgumentList '-S -m fortiauto run' -WorkingDirectory $dest -WindowStyle Hidden
+    Start-Process -FilePath $pythonw -ArgumentList $taskArgs -WorkingDirectory $dest -WindowStyle Hidden
     Write-Host "Startup: $lnk (started now, and at every logon)"
 }
 

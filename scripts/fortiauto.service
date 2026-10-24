@@ -2,7 +2,7 @@
 Description=FortiGate captive portal auto-login (fortiauto)
 
 [Service]
-ExecStart=@PYTHON@ -S -m fortiauto run
+ExecStart=@PYTHON@ -I -S @APP@/fortiauto/launch.py run
 WorkingDirectory=@APP@
 Restart=always
 RestartSec=5
