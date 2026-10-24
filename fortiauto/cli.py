@@ -25,13 +25,13 @@ def _paths():
     d = config.app_dir()
     return {
         "log": os.path.join(d, "fortiauto.log"),
-        "state": os.path.join(d, "state.json"),
+        "state": os.path.join(d, "state.txt"),
         "lock": os.path.join(d, "fortiauto.lock"),
     }
 
 
 def cmd_run(args):
-    from . import daemon, lock, log, state
+    from . import daemon, lock, log, state, worker
 
     cfg = config.load()
     p = _paths()
@@ -42,6 +42,10 @@ def cmd_run(args):
     log.setup(p["log"], cfg.debug)
     log.info("fortiauto %s started (checking every %ss)" % (__version__, cfg.check_interval))
     d = daemon.Daemon(cfg, state.State(p["state"]))
+    import gc
+
+    gc.freeze()  # start-up objects are permanent; the GC never touches their pages again
+    ticks = 0
     try:
         while True:
             try:
@@ -49,6 +53,9 @@ def cmd_run(args):
             except Exception as e:  # never die: a bad page must not stop the watcher
                 log.error("unexpected error: %r" % e)
                 wait = cfg.check_interval
+            ticks += 1
+            if ticks % 300 == 3:  # once settled, then about every 10 minutes
+                worker.trim()  # hand idle pages back to Windows (no-op elsewhere)
             time.sleep(wait)
     except KeyboardInterrupt:
         log.info("stopped")
@@ -115,37 +122,67 @@ def cmd_login(args):
     return code
 
 
-def cmd_worker_login(args):
-    """Hidden: what the watcher runs in a child process. Prints the keepalive URL."""
-    from . import creds, portal, worker
+def _worker_args(args):
+    """Strip the trim flag; returns (args, trim_parent_when_done)."""
+    from . import worker
 
+    return [a for a in args if a != worker.TRIM_FLAG], worker.TRIM_FLAG in args
+
+
+def cmd_worker_login(args):
+    """Hidden: what the watcher runs in a child process."""
+    from . import creds, log, portal, worker
+
+    args, trim = _worker_args(args)
     cfg = config.load()
-    c = creds.load()
-    if not c:
-        print("no credentials saved; run: fortiauto set-credentials", file=sys.stderr)
-        return worker.EXIT_NOCREDS
+    log.setup(_paths()["log"], cfg.debug)
     try:
-        keepalive = portal.login(args[0], c[0], c[1], verify_tls=cfg.verify_tls,
-                                 timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
-    except portal.AuthFailed as e:
-        print(e, file=sys.stderr)
-        return worker.EXIT_AUTH
-    except (OSError, portal.PortalError) as e:
-        print(e, file=sys.stderr)
-        return worker.EXIT_ERROR
-    print(keepalive or "")
-    return worker.EXIT_OK
+        c = creds.load()
+        if not c:
+            print("no credentials saved; run: fortiauto set-credentials", file=sys.stderr)
+            return worker.EXIT_NOCREDS
+        try:
+            keepalive = portal.login(args[0], c[0], c[1], verify_tls=cfg.verify_tls,
+                                     timeout=cfg.timeout, allowed_hosts=cfg.allowed_hosts)
+        except portal.AuthFailed as e:
+            print(e, file=sys.stderr)
+            return worker.EXIT_AUTH
+        except (OSError, portal.PortalError) as e:
+            print(e, file=sys.stderr)
+            log.warn("login worker: %s" % e)
+            return worker.EXIT_ERROR
+        with open(worker.result_path(), "w", encoding="utf-8") as f:
+            f.write(keepalive or "")
+        print(keepalive or "")
+        return worker.EXIT_OK
+    finally:
+        if trim:
+            worker.trim_parent()
 
 
 def cmd_worker_keepalive(args):
     """Hidden: one keepalive hit in a child process."""
-    from . import portal
+    from . import log, portal, worker
 
+    args, trim = _worker_args(args)
     cfg = config.load()
+    log.setup(_paths()["log"], cfg.debug)
     try:
         return 0 if portal.keepalive(args[0], verify_tls=cfg.verify_tls, timeout=cfg.timeout) else 1
-    except OSError:
+    except OSError as e:
+        log.debug("keepalive failed: %s" % e)
         return 1
+    finally:
+        if trim:
+            worker.trim_parent()
+
+
+def cmd_worker_trim(args):
+    """Hidden: trim the parent's working set and exit."""
+    from . import worker
+
+    worker.trim_parent()
+    return 0
 
 
 def cmd_set_credentials(args):
@@ -195,6 +232,7 @@ COMMANDS = {
     "clear-credentials": cmd_clear_credentials,
     "_login": cmd_worker_login,
     "_keepalive": cmd_worker_keepalive,
+    "_trim": cmd_worker_trim,
 }
 
 

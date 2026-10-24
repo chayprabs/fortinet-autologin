@@ -2,7 +2,8 @@
 
 import time
 
-from . import log, portal, probe, worker
+from . import log, probe, worker
+from .errors import AuthFailed, NoCredentials, PortalError
 from .probe import CAPTIVE, ONLINE
 
 
@@ -22,8 +23,8 @@ class Daemon:
         self.cfg = cfg
         self.state = state
         self.check = check
-        self.login = login or (lambda url: worker.login(url, cfg))
-        self.keepalive = keepalive or (lambda url: worker.keepalive(url, cfg))
+        self.login = login or worker.login
+        self.keepalive = keepalive or worker.keepalive
         self.clock = clock
         self.last = None
         self.retry_at = 0.0
@@ -84,18 +85,18 @@ class Daemon:
             # Credentials are read on every login, so `fortiauto set-credentials`
             # takes effect without a restart.
             keepalive_url = self.login(portal_url)
-        except portal.NoCredentials:
+        except NoCredentials:
             log.warn("portal is asking for a login but no credentials are saved; "
                      "run: fortiauto set-credentials")
             self.retry_at = now + 30
             return
-        except portal.AuthFailed as e:
+        except AuthFailed as e:
             # Back off hard: hammering a wrong password can lock the account.
             log.error("%s; retrying in 60s (fix with: fortiauto set-credentials)" % e)
             self.state.update(last_error=str(e))
             self.retry_at = now + 60
             return
-        except (OSError, portal.PortalError) as e:
+        except (OSError, PortalError) as e:
             log.warn("login attempt failed (%s); retrying in %ds" % (e, wait))
             self.state.update(last_error=str(e))
             return
