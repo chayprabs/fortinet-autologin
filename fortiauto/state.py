@@ -1,9 +1,31 @@
-"""Small JSON file the daemon writes on events (not every check) so that
-`fortiauto status` can show when you logged in and when the next reset is due."""
+"""Small file the daemon writes on events (not every check) so that
+`fortiauto status` can show when you logged in and when the next reset is due.
 
-import json
+Plain "key<TAB>value" lines instead of JSON: the json module pulls in re,
+which the resident watcher otherwise never needs.
+"""
+
 import os
 import time
+
+
+def _encode(value):
+    if value is None:
+        return "-"
+    if isinstance(value, str):
+        return "s" + value.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+    return repr(value)  # int / float
+
+
+def _decode(text):
+    if text == "-":
+        return None
+    if text.startswith("s"):
+        return text[1:]
+    try:
+        return int(text)
+    except ValueError:
+        return float(text)
 
 
 class State:
@@ -12,8 +34,14 @@ class State:
         self.data = {}
         try:
             with open(path, encoding="utf-8") as f:
-                self.data = json.load(f)
-        except (OSError, ValueError):
+                for line in f:
+                    key, sep, value = line.rstrip("\n").partition("\t")
+                    if sep:
+                        try:
+                            self.data[key] = _decode(value)
+                        except ValueError:
+                            pass
+        except OSError:
             pass
 
     def get(self, key, default=None):
@@ -28,7 +56,8 @@ class State:
         tmp = self.path + ".tmp"
         try:
             with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(self.data, f, indent=1)
+                for key, value in self.data.items():
+                    f.write("%s\t%s\n" % (key, _encode(value)))
             os.replace(tmp, self.path)  # atomic: status never reads half a file
         except OSError:
             pass
