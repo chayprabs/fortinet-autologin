@@ -71,6 +71,28 @@ class LocalTest(unittest.TestCase):
         s.update(logins=1)
         self.assertEqual(os.stat(path).st_mtime_ns, mtime)
 
+    def test_state_round_trips_types_and_odd_strings(self):
+        path = os.path.join(self.tmp.name, "state.txt")
+        State(path).update(logins=3, expires_at=1761300000.25, keepalive_url=None,
+                           last_error="bad\tthing\nhappened", last_state="online")
+        s = State(path)
+        self.assertEqual(s.get("logins"), 3)
+        self.assertEqual(s.get("expires_at"), 1761300000.25)
+        self.assertIsNone(s.get("keepalive_url"))
+        self.assertEqual(s.get("last_error"), "bad thing happened")
+        self.assertEqual(s.get("last_state"), "online")
+
+    def test_launcher_runs_isolated(self):
+        import subprocess
+        import sys
+
+        import fortiauto
+
+        launch = os.path.join(os.path.dirname(fortiauto.__file__), "launch.py")
+        out = subprocess.run([sys.executable, "-I", "-S", launch, "version"],
+                             capture_output=True, text=True, cwd=self.tmp.name)
+        self.assertEqual(out.stdout.strip(), fortiauto.__version__)
+
     def test_lock_allows_one_instance(self):
         path = os.path.join(self.tmp.name, "x.lock")
         first = lock.acquire(path)
