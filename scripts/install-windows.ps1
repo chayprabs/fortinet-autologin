@@ -48,8 +48,13 @@ Remove-Item -Recurse -Force (Join-Path $dest 'fortiauto') -ErrorAction SilentlyC
 Copy-Item -Recurse (Join-Path $repo 'fortiauto') $dest
 Write-Host "Copied:  $dest\fortiauto"
 
-# Stop a previous instance so the new code is used.
+# Stop a previous instance so the new code is used, and wait until it's gone
+# (the new copy would otherwise see the old one's lock and exit).
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+Get-CimInstance Win32_Process -Filter "Name like 'python%'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like '*fortiauto*' -and $_.CommandLine -like '* run*' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Start-Sleep -Seconds 1
 
 $user = "$env:USERDOMAIN\$env:USERNAME"
 # launch.py with -I -S: no runpy, no site-packages, nothing on the machine can interfere.
