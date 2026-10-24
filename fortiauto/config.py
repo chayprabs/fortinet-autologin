@@ -1,6 +1,5 @@
 """Settings. Everything has a sane default; config.json is optional."""
 
-import json
 import os
 from types import SimpleNamespace
 
@@ -57,6 +56,8 @@ def load(path=None):
     cfg = dict(DEFAULTS)
     path = path or config_path()
     if os.path.exists(path):
+        import json  # only when there is a config file: most installs have none
+
         with open(path, encoding="utf-8") as f:
             user = json.load(f)
         unknown = sorted(set(user) - set(DEFAULTS))
