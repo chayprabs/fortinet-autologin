@@ -8,7 +8,7 @@ touched, so other apps are unaffected.
 
 from urllib.parse import urljoin, urlsplit
 
-USER_AGENT = "fortiauto/1.1.0"
+USER_AGENT = "fortiauto/1.1.1"
 MAX_BODY = 64 * 1024  # portal pages are small; never buffer more than this
 
 

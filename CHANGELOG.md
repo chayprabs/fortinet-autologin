@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-10-24
+
+### Fixed
+- Upgrading could leave the watcher stopped: the new copy started while the
+  old one was still exiting, saw its lock, and quit as a "duplicate". The
+  watcher now waits up to 10 s for an exiting copy, and the Windows installer
+  makes sure the old process is gone before starting the new one.
+
 ## [1.1.0] - 2026-10-24
 
 ### Changed
@@ -76,6 +84,7 @@ First release.
 - Docs: README, how it works, FAQ, troubleshooting, security policy,
   contributing guide, issue and PR templates.
 
+[1.1.1]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.1.1
 [1.1.0]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.1.0
 [1.0.2]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.2
 [1.0.1]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.1

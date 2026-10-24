@@ -124,7 +124,7 @@ then:
 
 ```text
 $ python -m fortiauto status
-fortiauto:   1.1.0
+fortiauto:   1.1.1
 daemon:      running
 network:     online
 last login:  2026-10-24 09:12:03 (1h 47m ago)
@@ -222,7 +222,7 @@ More answers in [docs/faq.md](docs/faq.md). If something's wrong, see
 ## Development
 
 ```bash
-python -m unittest discover -s tests -t . -v   # 48 tests, no network or install needed
+python -m unittest discover -s tests -t . -v   # 49 tests, no network or install needed
 python -m tests.fake_fortigate                  # a fake FortiGate portal to play with
 ```
 
