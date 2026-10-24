@@ -29,7 +29,8 @@ INTERCEPT_PAGE = ('<html><body><script language="JavaScript">'
 
 
 class FakeFortiGate:
-    def __init__(self, username="student", password="hunter2", js_intercept=False):
+    def __init__(self, username="student", password="hunter2", js_intercept=False,
+                 host="127.0.0.1"):
         self.username, self.password = username, password
         self.js_intercept = js_intercept  # intercept with a JS page instead of a 303
         self.fail_redirect = False  # answer a bad login with a 303 instead of a page
@@ -40,7 +41,7 @@ class FakeFortiGate:
         self.keepalives = 0
         self.failed_logins = 0
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
-        self.base = "http://127.0.0.1:%d" % self.server.server_port
+        self.base = "http://%s:%d" % (host, self.server.server_port)  # host may be a name
         self.probe_url = self.base + "/generate_204"
 
     def start(self):

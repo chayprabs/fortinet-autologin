@@ -43,6 +43,18 @@ class E2ETest(unittest.TestCase):
         self.assertEqual(probe.check(self.gw.probe_url, 2), (probe.ONLINE, None))
         self.assertTrue(portal.keepalive(keepalive, timeout=2))
 
+    def test_gateway_reached_by_hostname(self):
+        # Like https://fw.bits-pilani.ac.in:8090/fgtauth: a name, odd port.
+        gw = FakeFortiGate(host="localhost").start()
+        try:
+            status, url = probe.check(gw.probe_url, 2)
+            self.assertEqual(status, probe.CAPTIVE)
+            self.assertTrue(url.startswith("http://localhost:"))
+            portal.login(url, "student", "hunter2", timeout=2)
+            self.assertTrue(gw.authed)
+        finally:
+            gw.stop()
+
     def test_wrong_password_raises_auth_failed(self):
         _, url = probe.check(self.gw.probe_url, 2)
         with self.assertRaises(portal.AuthFailed):
