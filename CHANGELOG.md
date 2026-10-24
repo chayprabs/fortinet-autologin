@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-10-24
+
+### Fixed
+- Portals reached by **hostname** (e.g. `https://fw.bits-pilani.ac.in:8090/fgtauth`)
+  were refused by the credential safety check. A hostname is now accepted when
+  it resolves only to private addresses, which is just as safe as a private IP.
+  Reported from BITS Pilani.
+
+### Added
+- End-to-end test with a gateway reached by hostname on a non-standard port.
+
 ## [1.0.0] - 2026-10-24
 
 First release.
@@ -32,4 +43,5 @@ First release.
 - Docs: README, how it works, FAQ, troubleshooting, security policy,
   contributing guide, issue and PR templates.
 
+[1.0.1]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.1
 [1.0.0]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.0

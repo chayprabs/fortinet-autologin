@@ -14,7 +14,7 @@ import re
 import socket
 from urllib.parse import urljoin, urlsplit
 
-USER_AGENT = "fortiauto/1.0"
+USER_AGENT = "fortiauto/1.0.1"
 MAX_BODY = 64 * 1024  # portal pages are small; never buffer more than this
 
 
