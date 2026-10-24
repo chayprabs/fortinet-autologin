@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-24
+
+### Changed
+- **The background watcher uses about 85% less RAM: a ~2.4 MB working set,
+  down from ~16.4 MB** (private memory down from ~9.7 MB to ~7.4 MB), measured
+  on Windows 11 with Python 3.14. How:
+  - The probe uses the built-in `_socket` and plain string search: no `socket`,
+    `re` or `urllib` in the watcher.
+  - The login worker is started with `os.spawnv` instead of `subprocess` and
+    reports back through its exit code, a result file and the log.
+  - The state file is plain `key<TAB>value` text (`state.txt`) instead of JSON,
+    and `json` is only imported when a `config.json` exists.
+  - The background task starts `fortiauto/launch.py` with `-I -S` instead of
+    `-m`, which avoids `runpy`.
+  - `gc.freeze()` after start-up, and on Windows the worker trims the watcher's
+    idle pages after each run (and about every 10 minutes).
+- The login and re-login behaviour is unchanged.
+
+### Upgrade
+Run the new `install.cmd`. Your saved login and config are kept.
+
 ## [1.0.2] - 2026-10-24
 
 ### Added
@@ -55,6 +76,7 @@ First release.
 - Docs: README, how it works, FAQ, troubleshooting, security policy,
   contributing guide, issue and PR templates.
 
+[1.1.0]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.1.0
 [1.0.2]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.2
 [1.0.1]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.1
 [1.0.0]: https://github.com/chayprabs/fortinet-autologin/releases/tag/v1.0.0
