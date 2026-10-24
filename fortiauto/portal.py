@@ -68,23 +68,35 @@ def find_keepalive(text, base):
     return urljoin(base, m.group(0)) if m else None
 
 
+def _internal(ip_text):
+    import ipaddress
+
+    ip = ipaddress.ip_address(ip_text.split("%")[0])  # drop IPv6 zone id
+    return ip.is_private or ip in ipaddress.ip_network("100.64.0.0/10")
+
+
 def check_host(url, allowed_hosts=()):
     """Refuse to send credentials anywhere except the campus gateway.
 
-    Private/loopback/CGNAT IP addresses always pass (FortiGate portals are
-    almost always on 10.x / 172.16-31.x / 192.168.x / 100.64.x). Anything
-    else must be listed in `allowed_hosts`. This stops a spoofed page on
-    some other network from harvesting your password.
+    Private/loopback/CGNAT addresses pass (FortiGate portals are almost always
+    on 10.x / 172.16-31.x / 192.168.x / 100.64.x), and so do hostnames like
+    fw.college.edu that resolve *only* to such addresses. Anything else must
+    be listed in `allowed_hosts`. This stops a spoofed page on some other
+    network from harvesting your password.
     """
-    import ipaddress
-
     host = (urlsplit(url).hostname or "").lower()
+    if host in [h.lower() for h in allowed_hosts]:
+        return
     try:
-        ip = ipaddress.ip_address(host)
-        ok = ip.is_private or ip in ipaddress.ip_network("100.64.0.0/10")
-    except ValueError:
-        ok = False
-    ok = ok or host in [h.lower() for h in allowed_hosts]
+        ok = _internal(host)
+    except ValueError:  # a name, not an IP
+        import socket
+
+        try:
+            addrs = {a[4][0] for a in socket.getaddrinfo(host, None)}
+        except OSError:
+            addrs = set()
+        ok = bool(addrs) and all(_internal(a) for a in addrs)
     if not ok:
         raise PortalError(
             "refusing to send credentials to %r; if this is your gateway add it to "

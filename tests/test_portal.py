@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from fortiauto import portal
 from tests.test_probe import fixture
@@ -44,10 +45,26 @@ class CheckHostTest(unittest.TestCase):
                     "https://172.16.5.4/", "http://127.0.0.1:8080/", "https://100.64.0.1:1003/"):
             portal.check_host(url)
 
-    def test_public_or_named_hosts_are_refused(self):
-        for url in ("https://8.8.8.8/fgtauth?x", "https://evil.example/fgtauth?x"):
-            with self.assertRaises(portal.PortalError):
-                portal.check_host(url)
+    def test_public_ip_is_refused(self):
+        with self.assertRaises(portal.PortalError):
+            portal.check_host("https://8.8.8.8/fgtauth?x")
+
+    def _resolving_to(self, *ips):
+        def fake(host, port):
+            if not ips:
+                raise OSError("no such host")
+            return [(2, 1, 6, "", (ip, 0)) for ip in ips]
+        return mock.patch("socket.getaddrinfo", fake)
+
+    def test_hostname_resolving_to_private_ip_passes(self):
+        # e.g. https://fw.bits-pilani.ac.in:8090/fgtauth -> 172.24.3.254
+        with self._resolving_to("172.24.3.254"):
+            portal.check_host("https://fw.bits-pilani.ac.in:8090/fgtauth?x")
+
+    def test_hostname_resolving_to_public_or_nothing_is_refused(self):
+        for ips in (("8.8.8.8",), ("10.0.0.1", "8.8.8.8"), ()):
+            with self._resolving_to(*ips), self.assertRaises(portal.PortalError):
+                portal.check_host("https://evil.example/fgtauth?x")
 
     def test_allow_list_adds_to_private_ips(self):
         portal.check_host("https://Auth.College.edu:1003/", ["auth.college.edu"])
