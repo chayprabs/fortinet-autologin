@@ -58,6 +58,19 @@ class ClassifyTest(unittest.TestCase):
         self.assertLess(time.monotonic() - t0, 1.0)
         srv.close()
 
+    def test_split_http(self):
+        self.assertEqual(probe.split_http("http://www.gstatic.com/generate_204"),
+                         ("www.gstatic.com", 80, "/generate_204"))
+        self.assertEqual(probe.split_http("http://10.0.0.1:8080"), ("10.0.0.1", 8080, "/"))
+        self.assertEqual(probe.check("https://www.gstatic.com/generate_204", 1),
+                         (probe.OFFLINE, None))  # https probe URLs are rejected, not crashed on
+
+    def test_fgtauth_needs_a_full_url(self):
+        self.assertIsNone(probe.find_fgtauth("go to /fgtauth?abc"))
+        self.assertIsNone(probe.find_fgtauth('"http://x" then /fgtauth?abc'))
+        self.assertEqual(probe.find_fgtauth("x https://fw.bits-pilani.ac.in:8090/fgtauth?ab12 y"),
+                         "https://fw.bits-pilani.ac.in:8090/fgtauth?ab12")
+
     def test_unreachable_is_offline(self):
         # Port 1 on loopback refuses immediately.
         self.assertEqual(probe.check("http://127.0.0.1:1/generate_204", 1.0), (probe.OFFLINE, None))
