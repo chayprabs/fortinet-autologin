@@ -51,8 +51,10 @@
 
 ## Safety
 
-- Credentials are only ever sent to a **private IP address** (10.x, 172.16-31.x,
-  192.168.x, 100.64.x, loopback) or a hostname you add to `allowed_hosts`. A spoofed
+- Credentials are only ever sent to a **private network address** (10.x,
+  172.16-31.x, 192.168.x, 100.64.x, loopback), to a hostname that resolves
+  only to such addresses (e.g. `fw.bits-pilani.ac.in` → 172.24.3.254), or to
+  a host you add to `allowed_hosts`. A spoofed
   portal on some other network can't phish your password.
 - TLS verification is off by default because FortiGate portals ship a
   self-signed certificate (your browser warns about it too). Turn on

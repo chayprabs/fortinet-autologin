@@ -23,8 +23,8 @@ DEFAULTS = {
     # FortiGate portals usually use a self-signed certificate, so this is off.
     # The private-IP check in portal.check_host is what protects your password.
     "verify_tls": False,
-    # Extra gateway hostnames/IPs allowed to receive your credentials. Empty
-    # means "private IP addresses only".
+    # Extra gateway hostnames/IPs allowed to receive your credentials. Private
+    # addresses, and names resolving only to them, are always allowed.
     "allowed_hosts": [],
     # Log every probe, not just changes.
     "debug": False,

@@ -18,7 +18,8 @@ You'll get a reply within a few days.
 - **Environment variables** `FORTIAUTO_USERNAME` / `FORTIAUTO_PASSWORD` take
   priority if set.
 - Credentials are only ever sent to a gateway on a private, loopback or CGNAT
-  IP address, or a host you list in `allowed_hosts`. A fake portal on some
+  IP address (or a hostname that resolves only to such addresses), or a host
+  you list in `allowed_hosts`. A fake portal on some
   other network can't collect them.
 - They never appear in logs, the state file, command-line arguments or URLs.
   The login worker reads them itself; they aren't passed on its command line.

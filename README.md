@@ -21,7 +21,7 @@ for you, day and night, with no browser and no clicking.
 | **Fast** | Re-logs in about 1 s after the kick (checks every 0.5 s around the expected reset, every 2 s otherwise) |
 | **Light** | About 17 MB RAM (mostly Python itself), one tiny request every 2 s, below-normal priority |
 | **Harmless** | Changes no system settings: no proxy, DNS, firewall or browser changes. Stays idle on every non-FortiGate network |
-| **Safe** | Password kept in Windows Credential Manager (or a `0600` file); only sent to a private-IP gateway |
+| **Safe** | Password kept in Windows Credential Manager (or a `0600` file); only sent to a gateway on your private network |
 | **Zero dependencies** | Python standard library only. Nothing to `pip install` |
 | **Hands-off** | Starts at logon, survives sleep/wake, needs no admin, one-click uninstall |
 
@@ -158,7 +158,7 @@ with these defaults ([config.example.json](config.example.json)):
 | `fast_interval` | `0.5` | seconds between checks near the expected reset |
 | `fast_window` | `15` | start fast checks this many seconds before the reset (they continue 60 s after) |
 | `keepalive_interval` | `300` | seconds between portal keepalives (stops *idle* logouts); `0` = off |
-| `allowed_hosts` | `[]` | extra gateway hostnames allowed to receive your login (private IPs are always allowed) |
+| `allowed_hosts` | `[]` | extra gateway hosts allowed to receive your login (private IPs, and names resolving only to them, are always allowed) |
 | `verify_tls` | `false` | verify the portal's HTTPS certificate (most FortiGates use a self-signed one) |
 | `probe_url` | `http://www.gstatic.com/generate_204` | any plain-HTTP URL that returns `204` when you're online |
 | `debug` | `false` | log every check, not just changes |
@@ -216,7 +216,7 @@ More answers in [docs/faq.md](docs/faq.md). If something's wrong, see
 ## Development
 
 ```bash
-python -m unittest discover -s tests -t . -v   # 41 tests, no network or install needed
+python -m unittest discover -s tests -t . -v   # 44 tests, no network or install needed
 python -m tests.fake_fortigate                  # a fake FortiGate portal to play with
 ```
 

@@ -52,8 +52,8 @@ is meant to do.
 ### Is my password safe?
 
 On Windows it lives in Windows Credential Manager. On Linux/macOS it's a file
-only you can read. It's only sent to a private-IP gateway (or a host you
-allow-list). See [SECURITY.md](../SECURITY.md).
+only you can read. It's only sent to a gateway on a private network address, whether an IP or
+a name like `fw.college.edu` that resolves to one, or a host you allow-list. See [SECURITY.md](../SECURITY.md).
 
 ### I changed my password.
 
